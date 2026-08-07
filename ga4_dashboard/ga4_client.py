@@ -1,0 +1,427 @@
+"""GA4 data fetching — shared by server.py."""
+
+from google.analytics.data_v1beta import BetaAnalyticsDataClient
+from google.analytics.data_v1beta.types import (
+    DateRange, Dimension, Metric,
+    FilterExpression, Filter, RunReportRequest,
+    FilterExpressionList,
+)
+
+PROPERTIES = {
+    "srm": "257995281",
+    "sk":  "258026800",
+}
+
+LOGIN_STATUS_VALUE = "true"   # value of customEvent:login_status that means logged in
+
+CONTENT_URL_PATTERNS = [
+    '/video/', '/foundations/', '/hnbk/', '/ency/', '/books/', '/cases/', '/skills/',
+    '/book/', '/mono/', '/report/', '/cqresearcher/', '/chapter/', '/reference/',
+    '/books-and-reference', '/methods-map', '/dict/', '/chpt/',
+]
+SEARCH_URL_PATTERNS = ['/search']  # kept for _contains_or filter; categorisation logic below
+
+EXTERNAL_DISCOVERY_CHANNELS = {
+    "Organic Search", "Organic Social", "Referral", "Organic Video",
+    "Organic Shopping", "Display", "Paid Search", "Paid Social",
+    "Paid Video", "Paid Other", "Affiliates", "Audio", "Cross-network",
+    "Organic AI", "AI Search",
+}
+DIRECT_CHANNELS = {"Direct"}
+
+
+def _auth_filter():
+    # Sessions where login_status = 'true' OR authentication_subscription starts with 'true'
+    return FilterExpression(
+        or_group=FilterExpressionList(expressions=[
+            FilterExpression(filter=Filter(
+                field_name="customEvent:login_status",
+                string_filter=Filter.StringFilter(
+                    value=LOGIN_STATUS_VALUE,
+                    match_type=Filter.StringFilter.MatchType.EXACT,
+                ),
+            )),
+            FilterExpression(filter=Filter(
+                field_name="customEvent:authentication_subscription",
+                string_filter=Filter.StringFilter(
+                    value="true",
+                    match_type=Filter.StringFilter.MatchType.BEGINS_WITH,
+                ),
+            )),
+        ])
+    )
+
+
+def _search_filter():
+    return FilterExpression(
+        or_group=FilterExpressionList(expressions=[
+            FilterExpression(filter=Filter(
+                field_name="eventName",
+                string_filter=Filter.StringFilter(
+                    value="view_search_results",
+                    match_type=Filter.StringFilter.MatchType.EXACT,
+                ),
+            )),
+            FilterExpression(filter=Filter(
+                field_name="eventName",
+                string_filter=Filter.StringFilter(
+                    value="search_within_content",
+                    match_type=Filter.StringFilter.MatchType.EXACT,
+                ),
+            )),
+        ])
+    )
+
+
+def _and(f1, f2):
+    if f1 is None: return f2
+    if f2 is None: return f1
+    return FilterExpression(
+        and_group=FilterExpressionList(expressions=[f1, f2])
+    )
+
+
+def _contains_or(field, patterns):
+    exprs = [FilterExpression(filter=Filter(
+        field_name=field,
+        string_filter=Filter.StringFilter(value=p, match_type=Filter.StringFilter.MatchType.CONTAINS),
+    )) for p in patterns]
+    return exprs[0] if len(exprs) == 1 else FilterExpression(or_group=FilterExpressionList(expressions=exprs))
+
+
+def _event_exact(event_name):
+    return FilterExpression(filter=Filter(
+        field_name="eventName",
+        string_filter=Filter.StringFilter(value=event_name, match_type=Filter.StringFilter.MatchType.EXACT),
+    ))
+
+
+def _categorise_landing(url):
+    u = url.lower()
+    path = u.split('?')[0].rstrip('/')   # path without query string or trailing slash
+
+    # Content pages take priority
+    if any(p in u for p in CONTENT_URL_PATTERNS):
+        return 'content'
+
+    # Search: /search/results (with or without query string) OR /search with a query string
+    if '/search/results' in path or ('/search' in path and '?' in u):
+        return 'search'
+
+    # Portal/home: root domain or bare /search or /Search (no subpath, no query string)
+    if path in ('', '/', '/home', '/index', '/search') or len(path) <= 1:
+        return 'portal'
+
+    return 'other'
+
+
+def fetch_channel_data(client, property_id, start_date, end_date, auth_only=False):
+    resp = client.run_report(RunReportRequest(
+        property=f"properties/{property_id}",
+        dimensions=[Dimension(name="sessionDefaultChannelGroup")],
+        metrics=[Metric(name="sessions")],
+        date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+        dimension_filter=_auth_filter() if auth_only else None,
+        limit=50,
+    ))
+    return [(r.dimension_values[0].value, int(r.metric_values[0].value))
+            for r in resp.rows]
+
+
+def fetch_search_data(client, property_id, start_date, end_date, auth_only=False):
+    base = dict(
+        property=f"properties/{property_id}",
+        metrics=[Metric(name="sessions")],
+        date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+    )
+    total_resp = client.run_report(RunReportRequest(
+        **base,
+        dimension_filter=_auth_filter() if auth_only else None,
+    ))
+    total = int(total_resp.rows[0].metric_values[0].value) if total_resp.rows else 0
+
+    search_f = _search_filter()
+    combined_f = _and(_auth_filter(), search_f) if auth_only else search_f
+    search_resp = client.run_report(RunReportRequest(
+        **base,
+        dimension_filter=combined_f,
+    ))
+    searched = int(search_resp.rows[0].metric_values[0].value) if search_resp.rows else 0
+    return searched, max(0, total - searched), total
+
+
+def categorise_channels(rows):
+    external = direct = other = 0
+    breakdown = []
+    for channel, sessions in rows:
+        breakdown.append({"channel": channel, "sessions": sessions})
+        if channel in EXTERNAL_DISCOVERY_CHANNELS:
+            external += sessions
+        elif channel in DIRECT_CHANNELS:
+            direct += sessions
+        else:
+            other += sessions
+    total = external + direct + other
+    return {
+        "external": external, "direct": direct, "other": other, "total": total,
+        "breakdown": sorted(breakdown, key=lambda x: -x["sessions"]),
+    }
+
+
+def merge_channel_rows(rows_a, rows_b):
+    counts = {}
+    for channel, sessions in rows_a + rows_b:
+        counts[channel] = counts.get(channel, 0) + sessions
+    return list(counts.items())
+
+
+def list_landing_pages_diagnostic(client, start_date, end_date):
+    """Prints top 20 auth landing pages and top 20 landing pages classified as 'other'."""
+    af = _auth_filter()
+    for key, prop_id in PROPERTIES.items():
+        resp = client.run_report(RunReportRequest(
+            property=f"properties/{prop_id}",
+            dimensions=[Dimension(name="landingPage")],
+            metrics=[Metric(name="sessions")],
+            date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+            dimension_filter=af,
+            limit=100,
+        ))
+        rows = sorted(
+            [(r.dimension_values[0].value, int(r.metric_values[0].value)) for r in resp.rows],
+            key=lambda x: -x[1],
+        )
+
+        print(f"\n  [{key.upper()} — property {prop_id}] Top 20 auth landing pages:")
+        for url, n in rows[:20]:
+            cat = _categorise_landing(url)
+            print(f"    {cat:<8}  {n:>8,}  {url}")
+
+        others = [(url, n) for url, n in rows if _categorise_landing(url) == 'other']
+        print(f"\n  [{key.upper()}] Top 20 'other' landing pages ({len(others)} total):")
+        for url, n in others[:20]:
+            print(f"             {n:>8,}  {url}")
+    print()
+
+
+def list_event_names(client, start_date, end_date):
+    """Prints all event names found in both properties to the terminal."""
+    for key, prop_id in PROPERTIES.items():
+        resp = client.run_report(RunReportRequest(
+            property=f"properties/{prop_id}",
+            dimensions=[Dimension(name="eventName")],
+            metrics=[Metric(name="eventCount")],
+            date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+            limit=200,
+        ))
+        events = sorted(
+            [(r.dimension_values[0].value, int(r.metric_values[0].value)) for r in resp.rows],
+            key=lambda x: -x[1],
+        )
+        print(f"\n  [{key.upper()} — property {prop_id}]")
+        for name, count in events:
+            print(f"    {name:<45} {count:>12,}")
+    print()
+
+
+AUTH_KEYWORDS = {"login", "auth", "sign", "user"}
+
+def list_auth_events(client, start_date, end_date):
+    """Prints event names matching auth-related keywords from both properties."""
+    print(f"\n🔐  Auth-related event names ({start_date} → {end_date}):")
+    for key, prop_id in PROPERTIES.items():
+        resp = client.run_report(RunReportRequest(
+            property=f"properties/{prop_id}",
+            dimensions=[Dimension(name="eventName")],
+            metrics=[Metric(name="eventCount")],
+            date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+            limit=200,
+        ))
+        matches = sorted(
+            [
+                (r.dimension_values[0].value, int(r.metric_values[0].value))
+                for r in resp.rows
+                if any(kw in r.dimension_values[0].value.lower() for kw in AUTH_KEYWORDS)
+            ],
+            key=lambda x: -x[1],
+        )
+        print(f"\n  [{key.upper()} — property {prop_id}]")
+        if matches:
+            for name, count in matches:
+                print(f"    {name:<45} {count:>12,}")
+        else:
+            print("    (no matches)")
+    print()
+
+
+def list_custom_dimension_values(client, start_date, end_date):
+    """Prints distinct values for login_status and authentication_subscription in both properties."""
+    dims = [
+        ("customEvent:login_status",              "login_status"),
+        ("customEvent:authentication_subscription","authentication_subscription"),
+    ]
+    for key, prop_id in PROPERTIES.items():
+        print(f"\n  [{key.upper()} — property {prop_id}]")
+        for api_name, label in dims:
+            try:
+                resp = client.run_report(RunReportRequest(
+                    property=f"properties/{prop_id}",
+                    dimensions=[Dimension(name=api_name)],
+                    metrics=[Metric(name="sessions")],
+                    date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+                    limit=50,
+                ))
+                values = sorted(
+                    [(r.dimension_values[0].value, int(r.metric_values[0].value)) for r in resp.rows],
+                    key=lambda x: -x[1],
+                )
+                print(f"    {label}:")
+                if values:
+                    for val, count in values:
+                        print(f"      {val!r:<35} {count:>12,} sessions")
+                else:
+                    print("      (no data)")
+            except Exception as e:
+                print(f"      (error: {e})")
+    print()
+
+
+def _pct(n, d):
+    return round(n / d * 100, 1) if d else 0
+
+
+def fetch_funnel_data(client, property_id, start_date, end_date):
+    """Always auth-filtered — this funnel is specifically for authenticated users."""
+    af = _auth_filter()
+
+    # Q1: all auth sessions by landing page → entry point breakdown
+    resp = client.run_report(RunReportRequest(
+        property=f"properties/{property_id}",
+        dimensions=[Dimension(name="landingPage")],
+        metrics=[Metric(name="sessions"), Metric(name="engagedSessions")],
+        date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+        dimension_filter=af,
+        limit=500,
+    ))
+    entry_n   = {'content': 0, 'search': 0, 'portal': 0, 'other': 0}
+    entry_eng = {'content': 0, 'search': 0, 'portal': 0, 'other': 0}
+    for row in resp.rows:
+        cat = _categorise_landing(row.dimension_values[0].value)
+        entry_n[cat]   += int(row.metric_values[0].value)
+        entry_eng[cat] += int(row.metric_values[1].value)
+    total = sum(entry_n.values())
+
+    # Q2: content landers who searched
+    c_filter    = _and(af, _contains_or("landingPage", CONTENT_URL_PATTERNS))
+    cs_filter   = _and(c_filter, _search_filter())
+    r2 = client.run_report(RunReportRequest(
+        property=f"properties/{property_id}",
+        metrics=[Metric(name="sessions")],
+        date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+        dimension_filter=cs_filter,
+    ))
+    c_searched = int(r2.rows[0].metric_values[0].value) if r2.rows else 0
+
+    # Q3: search landers who clicked through to a content page
+    s_filter    = _and(af, _contains_or("landingPage", SEARCH_URL_PATTERNS))
+    sc_filter   = _and(s_filter, _event_exact("search_content_clickthrough"))
+    r3 = client.run_report(RunReportRequest(
+        property=f"properties/{property_id}",
+        metrics=[Metric(name="sessions")],
+        date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+        dimension_filter=sc_filter,
+    ))
+    s_clicked = int(r3.rows[0].metric_values[0].value) if r3.rows else 0
+
+    ct = entry_n['content'];   ce = entry_eng['content']
+    st = entry_n['search'];    se = entry_eng['search']
+    c_exit  = max(0, ct - ce);  c_other = max(0, ce - c_searched)
+    s_exit  = max(0, st - se);  s_other = max(0, se - s_clicked)
+
+    return {
+        "entry": {
+            "total":   total,
+            "content": {"n": ct,                "pct": _pct(ct,                total)},
+            "search":  {"n": st,                "pct": _pct(st,                total)},
+            "portal":  {"n": entry_n['portal'], "pct": _pct(entry_n['portal'], total)},
+            "other":   {"n": entry_n['other'],  "pct": _pct(entry_n['other'],  total)},
+        },
+        "content_landers": {
+            "total":         ct,
+            "exited":        {"n": c_exit,     "pct": _pct(c_exit,     ct)},
+            "searched":      {"n": c_searched,  "pct": _pct(c_searched,  ct)},
+            "other_engaged": {"n": c_other,     "pct": _pct(c_other,     ct)},
+        },
+        "search_landers": {
+            "total":          st,
+            "exited":         {"n": s_exit,    "pct": _pct(s_exit,    st)},
+            "clicked_content":{"n": s_clicked, "pct": _pct(s_clicked, st)},
+            "other_engaged":  {"n": s_other,   "pct": _pct(s_other,   st)},
+        },
+    }
+
+
+def merge_funnel(f1, f2):
+    def add_node(a, b, total):
+        n = a["n"] + b["n"]
+        return {"n": n, "pct": _pct(n, total)}
+
+    t  = f1["entry"]["total"] + f2["entry"]["total"]
+    ct = f1["content_landers"]["total"] + f2["content_landers"]["total"]
+    st = f1["search_landers"]["total"]  + f2["search_landers"]["total"]
+
+    return {
+        "entry": {
+            "total":   t,
+            "content": add_node(f1["entry"]["content"], f2["entry"]["content"], t),
+            "search":  add_node(f1["entry"]["search"],  f2["entry"]["search"],  t),
+            "portal":  add_node(f1["entry"]["portal"],  f2["entry"]["portal"],  t),
+            "other":   add_node(f1["entry"]["other"],   f2["entry"]["other"],   t),
+        },
+        "content_landers": {
+            "total":         ct,
+            "exited":        add_node(f1["content_landers"]["exited"],        f2["content_landers"]["exited"],        ct),
+            "searched":      add_node(f1["content_landers"]["searched"],      f2["content_landers"]["searched"],      ct),
+            "other_engaged": add_node(f1["content_landers"]["other_engaged"], f2["content_landers"]["other_engaged"], ct),
+        },
+        "search_landers": {
+            "total":          st,
+            "exited":         add_node(f1["search_landers"]["exited"],         f2["search_landers"]["exited"],         st),
+            "clicked_content":add_node(f1["search_landers"]["clicked_content"],f2["search_landers"]["clicked_content"],st),
+            "other_engaged":  add_node(f1["search_landers"]["other_engaged"],  f2["search_landers"]["other_engaged"],  st),
+        },
+    }
+
+
+def fetch_all(client, start_date, end_date, auth_only=False):
+    srm_ch = fetch_channel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
+    sk_ch  = fetch_channel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
+
+    srm_s, srm_ns, srm_t = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
+    sk_s,  sk_ns,  sk_t  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
+
+    srm_funnel = fetch_funnel_data(client, PROPERTIES["srm"], start_date, end_date)
+    sk_funnel  = fetch_funnel_data(client, PROPERTIES["sk"],  start_date, end_date)
+
+    combined_ch = merge_channel_rows(srm_ch, sk_ch)
+    return {
+        "srm": {
+            "channels": categorise_channels(srm_ch),
+            "search":   {"searched": srm_s, "not_searched": srm_ns, "total": srm_t},
+            "funnel":   srm_funnel,
+        },
+        "sk": {
+            "channels": categorise_channels(sk_ch),
+            "search":   {"searched": sk_s, "not_searched": sk_ns, "total": sk_t},
+            "funnel":   sk_funnel,
+        },
+        "combined": {
+            "channels": categorise_channels(combined_ch),
+            "search": {
+                "searched":     srm_s  + sk_s,
+                "not_searched": srm_ns + sk_ns,
+                "total":        srm_t  + sk_t,
+            },
+            "funnel": merge_funnel(srm_funnel, sk_funnel),
+        },
+    }

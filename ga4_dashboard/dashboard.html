@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GA4 Dashboard — SAGE Publishing</title>
+<style>
+:root {
+  --sage:       #2e7d32;
+  --sage-light: #e8f5e9;
+  --ext:        #1565c0;
+  --dir:        #ef6c00;
+  --oth:        #6a1b9a;
+  --srch:       #00838f;
+  --nosrch:     #558b2f;
+  --text:       #1a1a1a;
+  --muted:      #666;
+  --border:     #e0e0e0;
+  --bg:         #f4f6f8;
+  --radius:     8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); }
+
+header {
+  background: var(--sage); color: white;
+  padding: 20px 40px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+}
+header h1 { font-size: 1.4rem; font-weight: 600; }
+.subtitle { font-size: 0.82rem; opacity: .75; margin-top: 3px; }
+
+.controls {
+  background: white; border-bottom: 1px solid var(--border);
+  padding: 14px 40px;
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 6px rgba(0,0,0,.06);
+}
+.toggle-group { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.toggle-btn {
+  padding: 7px 18px; font-size: 0.85rem; font-weight: 500;
+  background: white; border: none; cursor: pointer; color: var(--muted);
+  border-right: 1px solid var(--border); transition: background .15s, color .15s;
+}
+.toggle-btn:last-child { border-right: none; }
+.toggle-btn.active { background: var(--sage); color: white; }
+.toggle-btn:hover:not(.active) { background: var(--sage-light); color: var(--sage); }
+
+.date-group { display: flex; align-items: center; gap: 8px; }
+.date-group label { color: var(--muted); font-size: 0.8rem; }
+.date-group input[type=date] {
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 10px; font-size: 0.85rem; font-family: inherit; color: var(--text);
+}
+.refresh-btn {
+  padding: 7px 18px; background: var(--sage); color: white;
+  border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 500;
+  cursor: pointer; transition: opacity .15s;
+}
+.refresh-btn:hover { opacity: .85; }
+.refresh-btn:disabled { opacity: .5; cursor: wait; }
+
+.export-btn {
+  padding: 7px 18px; background: white; color: var(--sage);
+  border: 1px solid var(--sage); border-radius: 6px; font-size: 0.85rem; font-weight: 500;
+  cursor: pointer; transition: background .15s, color .15s;
+}
+.export-btn:hover { background: var(--sage-light); }
+.export-btn:disabled { opacity: .5; cursor: wait; }
+
+.auth-toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.auth-toggle-wrap label { font-size: 0.8rem; color: var(--muted); }
+.auth-toggle { position: relative; display: inline-block; width: 40px; height: 22px; }
+.auth-toggle input { opacity: 0; width: 0; height: 0; }
+.auth-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: var(--border); border-radius: 22px; transition: .2s;
+}
+.auth-slider:before {
+  content: ''; position: absolute;
+  width: 16px; height: 16px; left: 3px; bottom: 3px;
+  background: white; border-radius: 50%; transition: .2s;
+}
+.auth-toggle input:checked + .auth-slider { background: var(--sage); }
+.auth-toggle input:checked + .auth-slider:before { transform: translateX(18px); }
+.auth-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: .03em;
+  background: #e8f5e9; color: var(--sage); border: 1px solid #a5d6a7;
+  vertical-align: middle; margin-left: 6px;
+}
+.status-msg { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
+.status-msg.loading { color: var(--sage); }
+.status-msg.error   { color: #c62828; }
+
+.container { max-width: 1140px; margin: 28px auto; padding: 0 24px 60px; }
+.section { margin-bottom: 40px; }
+.section-title {
+  font-size: 1.05rem; font-weight: 600; color: var(--sage);
+  margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--sage-light);
+}
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.card { background: white; border-radius: var(--radius); padding: 18px 20px; border: 1px solid var(--border); border-top-width: 4px; }
+.card .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 8px; }
+.card .value { font-size: 2rem; font-weight: 700; line-height: 1; }
+.card .sub   { font-size: 0.8rem; color: var(--muted); margin-top: 5px; }
+.card.total  { border-top-color: var(--sage);   } .card.total  .value { color: var(--sage);   }
+.card.ext    { border-top-color: var(--ext);    } .card.ext    .value { color: var(--ext);    }
+.card.dir    { border-top-color: var(--dir);    } .card.dir    .value { color: var(--dir);    }
+.card.oth    { border-top-color: var(--oth);    } .card.oth    .value { color: var(--oth);    }
+.card.srch   { border-top-color: var(--srch);   } .card.srch   .value { color: var(--srch);  }
+.card.nosrch { border-top-color: var(--nosrch); } .card.nosrch .value { color: var(--nosrch);}
+
+.bar-wrap { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 20px 24px; margin-bottom: 24px; }
+.bar-header { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); margin-bottom: 10px; }
+.bar { height: 38px; border-radius: 4px; display: flex; overflow: hidden; margin-bottom: 12px; }
+.seg {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; font-weight: 600; color: white;
+  min-width: 0; overflow: hidden; white-space: nowrap; transition: width .5s ease;
+}
+.seg.ext    { background: var(--ext);    }
+.seg.dir    { background: var(--dir);    }
+.seg.oth    { background: var(--oth);    }
+.seg.srch   { background: var(--srch);   }
+.seg.nosrch { background: var(--nosrch); }
+
+.legend { display: flex; gap: 18px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
+.dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+
+table { width: 100%; border-collapse: collapse; background: white; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+th { background: var(--sage-light); color: var(--sage); font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; padding: 11px 16px; text-align: left; }
+td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafafa; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.skeleton {
+  background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+  background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skel-card  { height: 90px; }
+.skel-bar   { height: 140px; }
+.skel-table { height: 200px; }
+
+/* ── Tooltips ── */
+.tip-wrap { position: relative; display: inline-block; vertical-align: middle; margin-left: 4px; }
+.tip-icon {
+  font-style: normal; font-size: 0.72rem; color: var(--muted);
+  cursor: help; opacity: 0.6; user-select: none;
+  border: 1px solid currentColor; border-radius: 50%;
+  width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.tip-wrap:hover .tip-icon { opacity: 1; color: var(--sage); border-color: var(--sage); }
+.tip-box {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e1e1e;
+  color: #f0f0f0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  padding: 10px 14px;
+  border-radius: 7px;
+  width: 270px;
+  z-index: 9999;
+  pointer-events: none;
+  font-weight: 400;
+  box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  white-space: normal;
+}
+.tip-box::after {
+  content: '';
+  position: absolute;
+  top: 100%; left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1e1e1e;
+}
+.tip-wrap:hover .tip-box { display: block; }
+/* keep tooltip on-screen for right-edge cards */
+.tip-right .tip-box  { left: auto; right: 0;   transform: none; }
+.tip-right .tip-box::after { left: auto; right: 14px; transform: none; }
+.tip-left  .tip-box  { left: 0;    transform: none; }
+.tip-left  .tip-box::after { left: 14px; transform: none; }
+
+/* ── Funnel ── */
+.funnel-wrap { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 28px 32px; }
+.funnel-note { font-size: .78rem; color: var(--muted); margin-top: 16px; }
+.funnel-row  { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.funnel-connector { display: flex; flex-direction: column; align-items: center; margin: 4px 0; }
+.funnel-arrow { font-size: 1.2rem; color: var(--border); line-height: 1; }
+.funnel-label-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 4px; }
+.f-label { font-size: .72rem; text-align: center; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+
+.f-box {
+  border-radius: 8px; padding: 14px 18px; text-align: center;
+  border: 1px solid var(--border); min-width: 140px; max-width: 190px; flex: 1;
+}
+.f-box .f-pct  { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.f-box .f-name { font-size: .75rem; color: var(--muted); margin: 4px 0 2px; text-transform: uppercase; letter-spacing: .03em; }
+.f-box .f-num  { font-size: .78rem; color: var(--muted); }
+
+.f-box.content  { border-top: 3px solid var(--ext);    } .f-box.content  .f-pct { color: var(--ext);    }
+.f-box.search   { border-top: 3px solid var(--srch);   } .f-box.search   .f-pct { color: var(--srch);   }
+.f-box.portal   { border-top: 3px solid var(--sage);   } .f-box.portal   .f-pct { color: var(--sage);   }
+.f-box.other    { border-top: 3px solid var(--oth);    } .f-box.other    .f-pct { color: var(--oth);    }
+.f-box.exited   { border-top: 3px solid #e53935;       } .f-box.exited   .f-pct { color: #e53935;       }
+.f-box.searched { border-top: 3px solid var(--srch);   } .f-box.searched .f-pct { color: var(--srch);   }
+.f-box.clicked  { border-top: 3px solid var(--nosrch); } .f-box.clicked  .f-pct { color: var(--nosrch); }
+.f-box.engaged  { border-top: 3px solid var(--dir);    } .f-box.engaged  .f-pct { color: var(--dir);    }
+
+.f-stage-wrap { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.f-stage { flex: 1; min-width: 280px; max-width: 440px; }
+.f-stage-header {
+  font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 14px;
+}
+.f-stage-total { font-size: .85rem; margin-bottom: 14px; }
+.f-stage-total strong { color: var(--text); }
+
+.f-outcome-bar { margin-bottom: 12px; }
+.f-outcome-label { display: flex; justify-content: space-between; font-size: .82rem; margin-bottom: 4px; }
+.f-outcome-label .f-o-name { font-weight: 500; }
+.f-outcome-label .f-o-stat { color: var(--muted); }
+.f-track { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+.f-fill  { height: 100%; border-radius: 5px; transition: width .5s ease; }
+.f-fill.exited   { background: #e53935; }
+.f-fill.searched { background: var(--srch); }
+.f-fill.clicked  { background: var(--nosrch); }
+.f-fill.engaged  { background: var(--dir); }
+
+footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>GA4 Session Analytics — SAGE Publishing</h1>
+    <div class="subtitle" id="header-subtitle">Loading…</div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="toggle-group">
+    <button class="toggle-btn active" data-view="combined">Combined</button>
+    <button class="toggle-btn" data-view="srm">SRM</button>
+    <button class="toggle-btn" data-view="sk">SK</button>
+  </div>
+
+  <div class="date-group">
+    <label>From</label>
+    <input type="date" id="date-start">
+    <label>To</label>
+    <input type="date" id="date-end">
+    <button class="refresh-btn" id="refresh-btn" onclick="loadData()">Refresh</button>
+    <button class="export-btn" id="export-btn" onclick="exportHTML()">Export HTML</button>
+  </div>
+
+  <div class="auth-toggle-wrap">
+    <label for="auth-toggle-input">Authenticated only</label>
+    <label class="auth-toggle">
+      <input type="checkbox" id="auth-toggle-input" onchange="loadData()">
+      <span class="auth-slider"></span>
+    </label>
+  </div>
+
+  <span class="status-msg" id="status-msg"></span>
+</div>
+
+<div class="container" id="main-content"></div>
+<footer id="footer"></footer>
+
+<script>
+const LABELS = { combined: 'Combined (SRM + SK)', srm: 'SRM', sk: 'SK' };
+const PROPS  = { srm: '257995281', sk: '258026800' };
+
+let currentView = 'combined';
+let currentData = null;
+
+(function init() {
+  const today = new Date();
+  const d90   = new Date(today); d90.setDate(today.getDate() - 90);
+  document.getElementById('date-end').value   = fmt(today);
+  document.getElementById('date-start').value = fmt(d90);
+
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentView = btn.dataset.view;
+      document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (currentData) renderAll(currentData);
+    });
+  });
+
+  loadData();
+})();
+
+function fmt(d) { return d.toISOString().slice(0, 10); }
+
+function authOnly() {
+  return document.getElementById('auth-toggle-input').checked;
+}
+
+async function loadData() {
+  const start = document.getElementById('date-start').value;
+  const end   = document.getElementById('date-end').value;
+  if (!start || !end) return;
+
+  setStatus('loading', 'Fetching data…');
+  document.getElementById('refresh-btn').disabled = true;
+  showSkeleton();
+
+  try {
+    const auth = authOnly() ? '&auth=1' : '';
+    const resp = await fetch(`/api/data?start=${start}&end=${end}${auth}`);
+    if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
+    currentData = await resp.json();
+    renderAll(currentData);
+    setStatus('', 'Updated ' + new Date().toLocaleTimeString());
+  } catch (e) {
+    setStatus('error', '⚠ ' + e.message);
+  } finally {
+    document.getElementById('refresh-btn').disabled = false;
+  }
+}
+
+function exportHTML() {
+  const start = document.getElementById('date-start').value;
+  const end   = document.getElementById('date-end').value;
+  if (!start || !end) return;
+  const auth = authOnly() ? '&auth=1' : '';
+  const suffix = authOnly() ? '_authenticated' : '';
+  const btn = document.getElementById('export-btn');
+  btn.disabled = true;
+  btn.textContent = 'Exporting…';
+  const a = document.createElement('a');
+  a.href = `/export?start=${start}&end=${end}${auth}`;
+  a.download = `sage_ga4_${start}_to_${end}${suffix}.html`;
+  a.click();
+  setTimeout(() => { btn.disabled = false; btn.textContent = 'Export HTML'; }, 2000);
+}
+
+function setStatus(cls, msg) {
+  const el = document.getElementById('status-msg');
+  el.className = 'status-msg ' + cls;
+  el.textContent = msg;
+}
+
+function showSkeleton() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="section">
+      <div class="section-title">1 · Session Origin</div>
+      <div class="cards">${'<div class="card skeleton skel-card"></div>'.repeat(4)}</div>
+      <div class="skeleton skel-bar" style="margin-bottom:24px"></div>
+      <div class="skeleton skel-table"></div>
+    </div>
+    <div class="section" style="margin-top:32px">
+      <div class="section-title">2 · Search Behaviour</div>
+      <div class="cards">${'<div class="card skeleton skel-card"></div>'.repeat(3)}</div>
+      <div class="skeleton skel-bar"></div>
+    </div>`;
+}
+
+function pct(part, total) { return total ? Math.round(part / total * 1000) / 10 : 0; }
+function num(n) { return (n || 0).toLocaleString(); }
+
+function tip(text, edge) {
+  const cls = edge ? ` tip-${edge}` : '';
+  return `<span class="tip-wrap${cls}"><span class="tip-icon">i</span><div class="tip-box">${text}</div></span>`;
+}
+
+function renderAll(data) {
+  const d       = data[currentView];
+  const meta    = data.meta;
+  const isAuth  = meta.auth_only;
+  const propLine = currentView === 'combined'
+    ? `SRM (${PROPS.srm}) + SK (${PROPS.sk})`
+    : `Property ${PROPS[currentView]}`;
+  const authBadge = isAuth
+    ? ' <span class="auth-badge">Authenticated only</span>'
+    : '';
+
+  document.getElementById('header-subtitle').innerHTML =
+    `${propLine}  ·  ${meta.start} → ${meta.end}${authBadge}`;
+  document.getElementById('footer').textContent =
+    `Google Analytics 4  ·  ${propLine}  ·  ${meta.start} → ${meta.end}${isAuth ? '  ·  Authenticated users only' : ''}`;
+  document.getElementById('main-content').innerHTML =
+    channelSection(d.channels, isAuth) + searchSection(d.search, isAuth) + funnelSection(d.funnel);
+}
+
+function channelSection(ch, isAuth) {
+  const t    = ch.total || 0;
+  const extP = pct(ch.external, t);
+  const dirP = pct(ch.direct,   t);
+  const othP = pct(ch.other,    t);
+  const label = LABELS[currentView];
+
+  const rows = (ch.breakdown || []).map(r => `
+    <tr>
+      <td>${r.channel}</td>
+      <td class="num">${num(r.sessions)}</td>
+      <td class="num">${pct(r.sessions, t)}%</td>
+    </tr>`).join('');
+
+  return `
+  <div class="section">
+    <div class="section-title">1 · Session Origin — External Discovery vs Direct <span style="font-weight:400;color:var(--muted);font-size:.9rem">(${label})</span>${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
+      ${tip('How sessions arrived at the site, grouped by channel. Switching between Combined/SRM/SK changes the property scope; the date range above changes the time window.')}
+    </div>
+    <div class="cards">
+      <div class="card total">
+        <div class="label">Total Sessions ${tip('All sessions in the selected property and date range' + (isAuth ? ', filtered to authenticated users only.' : '.'))}</div>
+        <div class="value">${num(t)}</div>
+      </div>
+      <div class="card ext">
+        <div class="label">External Discovery ${tip(`${extP}% of sessions (${num(ch.external)}) came from outside Sage — users arriving via Google, academic databases, referral links, or AI assistants like ChatGPT. They didn't type the URL directly.`)}</div>
+        <div class="value">${extP}%</div>
+        <div class="sub">${num(ch.external)} sessions</div>
+      </div>
+      <div class="card dir">
+        <div class="label">Direct ${tip(`${dirP}% (${num(ch.direct)} sessions) typed the Sage URL directly or used a bookmark to arrive.`)}</div>
+        <div class="value">${dirP}%</div>
+        <div class="sub">${num(ch.direct)} sessions</div>
+      </div>
+      <div class="card oth">
+        <div class="label">Other / Unassigned ${tip(`${othP}% (${num(ch.other)} sessions) couldn't be categorised by GA4 — often institutional access methods like Athens or Shibboleth that don't pass referral information.`, 'right')}</div>
+        <div class="value">${othP}%</div>
+        <div class="sub">${num(ch.other)} sessions</div>
+      </div>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar-header"><span>Session origin breakdown</span><span>${num(t)} total sessions</span></div>
+      <div class="bar">
+        <div class="seg ext"    style="width:${extP}%">${extP > 5 ? extP + '%' : ''}</div>
+        <div class="seg dir"    style="width:${dirP}%">${dirP > 5 ? dirP + '%' : ''}</div>
+        <div class="seg oth"    style="width:${othP}%">${othP > 5 ? othP + '%' : ''}</div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="dot" style="background:var(--ext)"></div> External Discovery (${extP}%)</div>
+        <div class="legend-item"><div class="dot" style="background:var(--dir)"></div> Direct (${dirP}%)</div>
+        <div class="legend-item"><div class="dot" style="background:var(--oth)"></div> Other / Unassigned (${othP}%)</div>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>Channel Group</th><th class="num">Sessions</th><th class="num">% of Total</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+function funnelSection(f) {
+  const e  = f.entry;
+  const cl = f.content_landers;
+  const sl = f.search_landers;
+
+  function fbox(cls, name, pct, n, tooltip, edge) {
+    return `<div class="f-box ${cls}">
+      <div class="f-pct">${pct}%</div>
+      <div class="f-name">${name}${tooltip ? ' ' + tip(tooltip, edge) : ''}</div>
+      <div class="f-num">${num(n)} sessions</div>
+    </div>`;
+  }
+
+  function outcomeBar(cls, label, pct, n, tooltip) {
+    return `<div class="f-outcome-bar">
+      <div class="f-outcome-label">
+        <span class="f-o-name">${label}${tooltip ? ' ' + tip(tooltip) : ''}</span>
+        <span class="f-o-stat">${pct}% &nbsp;·&nbsp; ${num(n)} sessions</span>
+      </div>
+      <div class="f-track"><div class="f-fill ${cls}" style="width:${pct}%"></div></div>
+    </div>`;
+  }
+
+  return `
+  <div class="section" style="margin-top:32px">
+    <div class="section-title">3 · Authenticated User Journey Funnel <span class="auth-badge">Authenticated only</span>
+      ${tip('Traces what authenticated users did after landing on the site. Always filtered to authenticated sessions regardless of the toggle above.')}
+    </div>
+    <div class="funnel-wrap">
+
+      <div style="text-align:center;margin-bottom:6px;font-size:.8rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">
+        Entry Point — ${num(e.total)} authenticated sessions
+      </div>
+      <div class="funnel-row">
+        ${fbox('content', 'Content Page',  e.content.pct, e.content.n,
+          `${e.content.pct}% (${num(e.content.n)} sessions) landed directly on a content page — a book chapter, video, encyclopaedia entry, or similar resource. URLs matching: /book/, /video/, /chapter/, /ency/, and others.`)}
+        ${fbox('search',  'Search Page',   e.search.pct,  e.search.n,
+          `${e.search.pct}% (${num(e.search.n)} sessions) landed on a search results page — they arrived mid-query, typically clicking through from an external search engine or database.`)}
+        ${fbox('portal',  'Portal / Home', e.portal.pct,  e.portal.n,
+          `${e.portal.pct}% (${num(e.portal.n)} sessions) landed on the homepage or browse interface — a general discovery starting point with no specific content or query in the URL.`)}
+        ${fbox('other',   'Other',         e.other.pct,   e.other.n,
+          `${e.other.pct}% (${num(e.other.n)} sessions) landed on a page that doesn't match any known content, search, or portal pattern. May include profile pages, admin pages, or URL structures not yet mapped.`, 'right')}
+      </div>
+
+      <div class="funnel-connector"><div class="funnel-arrow">↓</div></div>
+
+      <div class="f-stage-wrap">
+
+        <div class="f-stage">
+          <div class="f-stage-header">Content page landers — what next?</div>
+          <div class="f-stage-total">${num(cl.total)} sessions landed on a content page</div>
+          ${outcomeBar('exited',   'Exited (single page)',       cl.exited.pct,        cl.exited.n,
+            `${cl.exited.pct}% (${num(cl.exited.n)} sessions) left after viewing only the landing page — an unengaged session under 10 seconds with no further interaction or conversion event.`)}
+          ${outcomeBar('searched', 'Performed a search',        cl.searched.pct,      cl.searched.n,
+            `${cl.searched.pct}% (${num(cl.searched.n)} sessions) fired a view_search_results or search_within_content event after landing on content, indicating they switched to active searching.`)}
+          ${outcomeBar('engaged',  'Viewed a second content page¹', cl.other_engaged.pct, cl.other_engaged.n,
+            `${cl.other_engaged.pct}% (${num(cl.other_engaged.n)} sessions) stayed and navigated further without searching. Estimated as engaged sessions minus searchers. ¹The GA4 API doesn't expose within-session page sequences, so a small number may have navigated to non-content pages.`)}
+        </div>
+
+        <div class="f-stage">
+          <div class="f-stage-header">Search page landers — what next?</div>
+          <div class="f-stage-total">${num(sl.total)} sessions landed on a search page</div>
+          ${outcomeBar('exited',  'Exited immediately',          sl.exited.pct,          sl.exited.n,
+            `${sl.exited.pct}% (${num(sl.exited.n)} sessions) left without clicking a result — a single-page, unengaged session lasting under 10 seconds.`)}
+          ${outcomeBar('clicked', 'Clicked through to content',  sl.clicked_content.pct, sl.clicked_content.n,
+            `${sl.clicked_content.pct}% (${num(sl.clicked_content.n)} sessions) clicked through to a content page. Measured using the search_content_clickthrough event fired when a user selects a search result.`)}
+          ${outcomeBar('engaged', 'Other engagement',            sl.other_engaged.pct,   sl.other_engaged.n,
+            `${sl.other_engaged.pct}% (${num(sl.other_engaged.n)} sessions) stayed engaged but didn't trigger a content clickthrough — may have refined their search query, browsed filters, or navigated elsewhere.`)}
+        </div>
+
+      </div>
+
+      <p class="funnel-note">
+        ⓘ &nbsp;<strong>Content pages:</strong> /video/, /foundations/, /hnbk/, /ency/, /books/, /cases/, /skills/, /book/, /mono/, /report/, /cqresearcher/, /chapter/, /reference/ &nbsp;·&nbsp;
+        <strong>Search pages:</strong> /search/results (any case) or /search?query &nbsp;·&nbsp;
+        <strong>Portal/Home:</strong> root domain or bare /search page &nbsp;·&nbsp;
+        <strong>"Exited"</strong> = unengaged sessions (&lt;10s, single page, no conversion event) &nbsp;·&nbsp;
+        <strong>"Clicked through"</strong> = <code>search_content_clickthrough</code> event fired<br>
+        ¹ Estimated as engaged content-lander sessions that did not fire a search event. The GA4 Data API does not expose within-session page sequences, so this figure may include a small number of sessions that navigated to non-content pages.
+      </p>
+    </div>
+  </div>`;
+}
+
+function searchSection(s, isAuth) {
+  const t      = s.total || 0;
+  const srchP  = pct(s.searched,     t);
+  const noP    = pct(s.not_searched, t);
+
+  return `
+  <div class="section" style="margin-top:32px">
+    <div class="section-title">2 · Session Behaviour — Search vs Content-Only${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
+      ${tip('Whether sessions included a search interaction. Measured using the view_search_results and search_within_content GA4 events.')}
+    </div>
+    <div class="cards">
+      <div class="card total">
+        <div class="label">Total Sessions ${tip('All sessions in the selected scope and date range' + (isAuth ? ', filtered to authenticated users only.' : '.'))}</div>
+        <div class="value">${num(t)}</div>
+      </div>
+      <div class="card srch">
+        <div class="label">Used Search ${tip(`${srchP}% of sessions (${num(s.searched)}) included at least one search — the user typed a query and viewed results at some point during their visit. Triggered by the view_search_results or search_within_content event.`)}</div>
+        <div class="value">${srchP}%</div>
+        <div class="sub">${num(s.searched)} sessions</div>
+      </div>
+      <div class="card nosrch">
+        <div class="label">Content-Only ${tip(`${noP}% of sessions (${num(s.not_searched)}) never used search — they arrived, viewed content, and navigated without touching the search bar.`, 'right')}</div>
+        <div class="value">${noP}%</div>
+        <div class="sub">${num(s.not_searched)} sessions</div>
+      </div>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar-header"><span>Search interaction breakdown</span><span>${num(t)} total sessions</span></div>
+      <div class="bar">
+        <div class="seg srch"   style="width:${srchP}%">${srchP > 5 ? srchP + '%' : ''}</div>
+        <div class="seg nosrch" style="width:${noP}%">${noP > 5 ? noP + '%' : ''}</div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="dot" style="background:var(--srch)"></div> Used site search (${srchP}%)</div>
+        <div class="legend-item"><div class="dot" style="background:var(--nosrch)"></div> Content-only — no search (${noP}%)</div>
+      </div>
+    </div>
+    <p style="font-size:.8rem;color:var(--muted);margin-top:12px">
+      ⓘ &nbsp;"Used Search" = sessions where <code>view_search_results</code> or <code>search_within_content</code> fired at least once.
+    </p>
+  </div>`;
+}
+</script>
+</body>
+</html>
