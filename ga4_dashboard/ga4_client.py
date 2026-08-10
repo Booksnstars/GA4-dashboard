@@ -15,10 +15,16 @@ PROPERTIES = {
 LOGIN_STATUS_VALUE = "true"   # value of customEvent:login_status that means logged in
 
 CONTENT_URL_PATTERNS = [
+    # existing
     '/video/', '/foundations/', '/hnbk/', '/ency/', '/books/', '/cases/', '/skills/',
     '/book/', '/mono/', '/report/', '/cqresearcher/', '/chapter/', '/reference/',
     '/books-and-reference', '/methods-map', '/dict/', '/chpt/',
+    # SK-specific additions
+    '/referenceandbooks', '/business', '/videocollections',
+    # SRM-specific additions
+    '/project-planner', '/which-stats-test',
 ]
+ERROR_URL_PATTERNS = ['/error']  # matches /Error, /error/handleStatusCode, etc.
 SEARCH_URL_PATTERNS = ['/search']  # kept for _contains_or filter; categorisation logic below
 
 EXTERNAL_DISCOVERY_CHANNELS = {
@@ -99,6 +105,10 @@ def _event_exact(event_name):
 def _categorise_landing(url):
     u = url.lower()
     path = u.split('?')[0].rstrip('/')   # path without query string or trailing slash
+
+    # Error pages — check before content so /error/* doesn't fall into other
+    if any(p in path for p in ERROR_URL_PATTERNS):
+        return 'error'
 
     # Content pages take priority
     if any(p in u for p in CONTENT_URL_PATTERNS):
@@ -303,8 +313,8 @@ def fetch_funnel_data(client, property_id, start_date, end_date):
         dimension_filter=af,
         limit=500,
     ))
-    entry_n   = {'content': 0, 'search': 0, 'portal': 0, 'other': 0}
-    entry_eng = {'content': 0, 'search': 0, 'portal': 0, 'other': 0}
+    entry_n   = {'content': 0, 'search': 0, 'portal': 0, 'error': 0, 'other': 0}
+    entry_eng = {'content': 0, 'search': 0, 'portal': 0, 'error': 0, 'other': 0}
     for row in resp.rows:
         cat = _categorise_landing(row.dimension_values[0].value)
         entry_n[cat]   += int(row.metric_values[0].value)
@@ -344,6 +354,7 @@ def fetch_funnel_data(client, property_id, start_date, end_date):
             "content": {"n": ct,                "pct": _pct(ct,                total)},
             "search":  {"n": st,                "pct": _pct(st,                total)},
             "portal":  {"n": entry_n['portal'], "pct": _pct(entry_n['portal'], total)},
+            "error":   {"n": entry_n['error'],  "pct": _pct(entry_n['error'],  total)},
             "other":   {"n": entry_n['other'],  "pct": _pct(entry_n['other'],  total)},
         },
         "content_landers": {
@@ -376,6 +387,7 @@ def merge_funnel(f1, f2):
             "content": add_node(f1["entry"]["content"], f2["entry"]["content"], t),
             "search":  add_node(f1["entry"]["search"],  f2["entry"]["search"],  t),
             "portal":  add_node(f1["entry"]["portal"],  f2["entry"]["portal"],  t),
+            "error":   add_node(f1["entry"]["error"],   f2["entry"]["error"],   t),
             "other":   add_node(f1["entry"]["other"],   f2["entry"]["other"],   t),
         },
         "content_landers": {
