@@ -576,9 +576,19 @@ function searchSection(s, isAuth) {
         <div class="sub">${num(s.searched)} sessions</div>
       </div>
       <div class="card nosrch">
-        <div class="label">Content-Only ${tip(`${noP}% of sessions (${num(s.not_searched)}) never used search — they arrived, viewed content, and navigated without touching the search bar.`, 'right')}</div>
+        <div class="label">Content-Only ${tip(`${noP}% of sessions (${num(s.not_searched)}) never used search — they arrived, viewed content, and navigated without touching the search bar.`)}</div>
         <div class="value">${noP}%</div>
         <div class="sub">${num(s.not_searched)} sessions</div>
+      </div>
+      <div class="card total">
+        <div class="label">Total Search Events ${tip('Count of individual view_search_results events fired. One session can contribute multiple search events if the user ran several searches during their visit.')}</div>
+        <div class="value">${num(s.search_events || 0)}</div>
+        <div class="sub">individual searches</div>
+      </div>
+      <div class="card ext">
+        <div class="label">Content Views from Search ${tip('Page views where the referring page was a search results page (/Search/Results or /search/results). Identifies content views driven directly by a search interaction.', 'right')}</div>
+        <div class="value">${num(s.content_views_from_search || 0)}</div>
+        <div class="sub">page views</div>
       </div>
     </div>
     <div class="bar-wrap">

@@ -142,23 +142,54 @@ def fetch_channel_data(client, property_id, start_date, end_date, auth_only=Fals
 def fetch_search_data(client, property_id, start_date, end_date, auth_only=False):
     base = dict(
         property=f"properties/{property_id}",
-        metrics=[Metric(name="sessions")],
         date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
     )
+    auth_f = _auth_filter() if auth_only else None
+
     total_resp = client.run_report(RunReportRequest(
         **base,
-        dimension_filter=_auth_filter() if auth_only else None,
+        metrics=[Metric(name="sessions")],
+        dimension_filter=auth_f,
     ))
     total = int(total_resp.rows[0].metric_values[0].value) if total_resp.rows else 0
 
-    search_f = _search_filter()
-    combined_f = _and(_auth_filter(), search_f) if auth_only else search_f
+    search_f    = _search_filter()
+    combined_f  = _and(auth_f, search_f)
     search_resp = client.run_report(RunReportRequest(
         **base,
+        metrics=[Metric(name="sessions")],
         dimension_filter=combined_f,
     ))
     searched = int(search_resp.rows[0].metric_values[0].value) if search_resp.rows else 0
-    return searched, max(0, total - searched), total
+
+    # Total individual view_search_results events (one session can fire multiple)
+    events_f    = _and(auth_f, FilterExpression(filter=Filter(
+        field_name="eventName",
+        string_filter=Filter.StringFilter(value="view_search_results",
+                                          match_type=Filter.StringFilter.MatchType.EXACT),
+    )))
+    events_resp = client.run_report(RunReportRequest(
+        **base,
+        metrics=[Metric(name="eventCount")],
+        dimension_filter=events_f,
+    ))
+    search_events = int(events_resp.rows[0].metric_values[0].value) if events_resp.rows else 0
+
+    # Content pageviews where the referrer was a search results page
+    referrer_f    = _and(auth_f, FilterExpression(filter=Filter(
+        field_name="pageReferrer",
+        string_filter=Filter.StringFilter(value="/search/results",
+                                          match_type=Filter.StringFilter.MatchType.CONTAINS,
+                                          case_sensitive=False),
+    )))
+    referrer_resp = client.run_report(RunReportRequest(
+        **base,
+        metrics=[Metric(name="screenPageViews")],
+        dimension_filter=referrer_f,
+    ))
+    content_views_from_search = int(referrer_resp.rows[0].metric_values[0].value) if referrer_resp.rows else 0
+
+    return searched, max(0, total - searched), total, search_events, content_views_from_search
 
 
 def categorise_channels(rows):
@@ -414,8 +445,8 @@ def fetch_all(client, start_date, end_date, auth_only=False):
     srm_ch = fetch_channel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_ch  = fetch_channel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
 
-    srm_s, srm_ns, srm_t = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
-    sk_s,  sk_ns,  sk_t  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
+    srm_s, srm_ns, srm_t, srm_se, srm_cvs = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
+    sk_s,  sk_ns,  sk_t,  sk_se,  sk_cvs  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
 
     srm_funnel = fetch_funnel_data(client, PROPERTIES["srm"], start_date, end_date)
     sk_funnel  = fetch_funnel_data(client, PROPERTIES["sk"],  start_date, end_date)
@@ -424,20 +455,22 @@ def fetch_all(client, start_date, end_date, auth_only=False):
     return {
         "srm": {
             "channels": categorise_channels(srm_ch),
-            "search":   {"searched": srm_s, "not_searched": srm_ns, "total": srm_t},
+            "search":   {"searched": srm_s, "not_searched": srm_ns, "total": srm_t, "search_events": srm_se, "content_views_from_search": srm_cvs},
             "funnel":   srm_funnel,
         },
         "sk": {
             "channels": categorise_channels(sk_ch),
-            "search":   {"searched": sk_s, "not_searched": sk_ns, "total": sk_t},
+            "search":   {"searched": sk_s, "not_searched": sk_ns, "total": sk_t, "search_events": sk_se, "content_views_from_search": sk_cvs},
             "funnel":   sk_funnel,
         },
         "combined": {
             "channels": categorise_channels(combined_ch),
             "search": {
-                "searched":     srm_s  + sk_s,
-                "not_searched": srm_ns + sk_ns,
-                "total":        srm_t  + sk_t,
+                "searched":                srm_s  + sk_s,
+                "not_searched":            srm_ns + sk_ns,
+                "total":                   srm_t  + sk_t,
+                "search_events":           srm_se + sk_se,
+                "content_views_from_search": srm_cvs + sk_cvs,
             },
             "funnel": merge_funnel(srm_funnel, sk_funnel),
         },
