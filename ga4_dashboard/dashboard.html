@@ -257,6 +257,7 @@ footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--mut
     <button class="toggle-btn active" data-view="combined">Combined</button>
     <button class="toggle-btn" data-view="srm">SRM</button>
     <button class="toggle-btn" data-view="sk">SK</button>
+    <button class="toggle-btn" data-view="cq">CQ</button>
   </div>
 
   <div class="date-group">
@@ -283,8 +284,8 @@ footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--mut
 <footer id="footer"></footer>
 
 <script>
-const LABELS = { combined: 'Combined (SRM + SK)', srm: 'SRM', sk: 'SK' };
-const PROPS  = { srm: '257995281', sk: '258026800' };
+const LABELS = { combined: 'Combined (SRM + SK + CQ)', srm: 'SRM', sk: 'SK', cq: 'CQ' };
+const PROPS  = { srm: '257995281', sk: '258026800', cq: '401616614' };
 
 let currentView = 'combined';
 let currentData = null;
@@ -424,7 +425,7 @@ function channelSection(ch, isAuth) {
   return `
   <div class="section">
     <div class="section-title">1 · Session Origin — External Discovery vs Direct <span style="font-weight:400;color:var(--muted);font-size:.9rem">(${label})</span>${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
-      ${tip('How sessions arrived at the site, grouped by channel. Switching between Combined/SRM/SK changes the property scope; the date range above changes the time window.')}
+      ${tip('How sessions arrived at the site, grouped by channel. Switching between Combined/SRM/SK/CQ changes the property scope; the date range above changes the time window.')}
     </div>
     <div class="cards">
       <div class="card total">

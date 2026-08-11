@@ -10,6 +10,7 @@ from google.analytics.data_v1beta.types import (
 PROPERTIES = {
     "srm": "257995281",
     "sk":  "258026800",
+    "cq":  "401616614",
 }
 
 LOGIN_STATUS_VALUE = "true"   # value of customEvent:login_status that means logged in
@@ -444,14 +445,17 @@ def merge_funnel(f1, f2):
 def fetch_all(client, start_date, end_date, auth_only=False):
     srm_ch = fetch_channel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_ch  = fetch_channel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
+    cq_ch  = fetch_channel_data(client, PROPERTIES["cq"],  start_date, end_date, auth_only)
 
     srm_s, srm_ns, srm_t, srm_se, srm_cvs = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_s,  sk_ns,  sk_t,  sk_se,  sk_cvs  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
+    cq_s,  cq_ns,  cq_t,  cq_se,  cq_cvs  = fetch_search_data(client, PROPERTIES["cq"],  start_date, end_date, auth_only)
 
     srm_funnel = fetch_funnel_data(client, PROPERTIES["srm"], start_date, end_date)
     sk_funnel  = fetch_funnel_data(client, PROPERTIES["sk"],  start_date, end_date)
+    cq_funnel  = fetch_funnel_data(client, PROPERTIES["cq"],  start_date, end_date)
 
-    combined_ch = merge_channel_rows(srm_ch, sk_ch)
+    combined_ch = merge_channel_rows(merge_channel_rows(srm_ch, sk_ch), cq_ch)
     return {
         "srm": {
             "channels": categorise_channels(srm_ch),
@@ -463,15 +467,20 @@ def fetch_all(client, start_date, end_date, auth_only=False):
             "search":   {"searched": sk_s, "not_searched": sk_ns, "total": sk_t, "search_events": sk_se, "content_views_from_search": sk_cvs},
             "funnel":   sk_funnel,
         },
+        "cq": {
+            "channels": categorise_channels(cq_ch),
+            "search":   {"searched": cq_s, "not_searched": cq_ns, "total": cq_t, "search_events": cq_se, "content_views_from_search": cq_cvs},
+            "funnel":   cq_funnel,
+        },
         "combined": {
             "channels": categorise_channels(combined_ch),
             "search": {
-                "searched":                srm_s  + sk_s,
-                "not_searched":            srm_ns + sk_ns,
-                "total":                   srm_t  + sk_t,
-                "search_events":           srm_se + sk_se,
-                "content_views_from_search": srm_cvs + sk_cvs,
+                "searched":                  srm_s  + sk_s  + cq_s,
+                "not_searched":              srm_ns + sk_ns + cq_ns,
+                "total":                     srm_t  + sk_t  + cq_t,
+                "search_events":             srm_se + sk_se + cq_se,
+                "content_views_from_search": srm_cvs + sk_cvs + cq_cvs,
             },
-            "funnel": merge_funnel(srm_funnel, sk_funnel),
+            "funnel": merge_funnel(merge_funnel(srm_funnel, sk_funnel), cq_funnel),
         },
     }
