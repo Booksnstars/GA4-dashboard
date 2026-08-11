@@ -18,7 +18,7 @@ LOGIN_STATUS_VALUE = "true"   # value of customEvent:login_status that means log
 CONTENT_URL_PATTERNS = [
     # existing
     '/video/', '/foundations/', '/hnbk/', '/ency/', '/books/', '/cases/', '/skills/',
-    '/book/', '/mono/', '/report/', '/cqresearcher/', '/chapter/', '/reference/',
+    '/book/', '/mono/', '/report/', '/cqresearcher', '/chapter/', '/reference/',
     '/books-and-reference', '/methods-map', '/dict/', '/chpt/',
     # SK-specific additions
     '/referenceandbooks', '/business', '/videocollections',
