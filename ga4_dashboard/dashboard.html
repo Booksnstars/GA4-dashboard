@@ -289,9 +289,10 @@ let currentView = 'combined';
 let currentData = null;
 
 (function init() {
-  const today = new Date();
-  const d90   = new Date(today); d90.setDate(today.getDate() - 90);
-  document.getElementById('date-end').value   = fmt(today);
+  const today     = new Date();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const d90       = new Date(today); d90.setDate(today.getDate() - 90);
+  document.getElementById('date-end').value   = fmt(yesterday);
   document.getElementById('date-start').value = fmt(d90);
 
   document.querySelectorAll('.toggle-btn').forEach(btn => {
@@ -306,7 +307,13 @@ let currentData = null;
   loadData();
 })();
 
-function fmt(d) { return d.toISOString().slice(0, 10); }
+function fmt(d) {
+  // Use local date parts to avoid UTC-offset issues (e.g. BST users getting wrong date from toISOString)
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
 
 function authOnly() {
   return document.getElementById('auth-toggle-input').checked;
