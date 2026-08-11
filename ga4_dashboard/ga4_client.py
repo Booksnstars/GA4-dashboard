@@ -162,10 +162,11 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
 
 
 def categorise_channels(rows):
-    external = direct = other = 0
+    external = direct = other = unassigned = 0
     breakdown = []
     for channel, sessions in rows:
         if channel in EXCLUDED_CHANNELS:
+            unassigned += sessions
             continue
         breakdown.append({"channel": channel, "sessions": sessions})
         if channel in EXTERNAL_DISCOVERY_CHANNELS:
@@ -177,6 +178,7 @@ def categorise_channels(rows):
     total = external + direct + other
     return {
         "external": external, "direct": direct, "other": other, "total": total,
+        "unassigned": unassigned,
         "breakdown": sorted(breakdown, key=lambda x: -x["sessions"]),
     }
 

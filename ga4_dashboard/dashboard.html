@@ -194,6 +194,7 @@ tr:hover td { background: #fafafa; }
 /* ── Funnel ── */
 .funnel-wrap { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 28px 32px; }
 .funnel-note { font-size: .78rem; color: var(--muted); margin-top: 16px; padding-left: 18px; }
+.unassigned-note { font-size: .75rem; color: var(--muted); margin-top: 8px; }
 .funnel-note li { margin-bottom: 3px; }
 .funnel-row  { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .funnel-connector { display: flex; flex-direction: column; align-items: center; margin: 4px 0; }
@@ -463,6 +464,7 @@ function channelSection(ch, isAuth) {
       <thead><tr><th>Channel Group</th><th class="num">Sessions</th><th class="num">% of Total</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    ${ch.unassigned ? `<p class="unassigned-note">ⓘ &nbsp;${num(ch.unassigned)} Unassigned sessions excluded from totals — sessions GA4 could not attribute to a known channel (e.g. missing referrer data).</p>` : ''}
   </div>`;
 }
 
