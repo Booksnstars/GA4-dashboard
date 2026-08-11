@@ -438,7 +438,7 @@ function channelSection(ch, isAuth) {
         <div class="sub">${num(ch.external)} sessions</div>
       </div>
       <div class="card dir">
-        <div class="label">Direct ${tip(`${dirP}% (${num(ch.direct)} sessions) typed the Sage URL directly or used a bookmark to arrive.`)}</div>
+        <div class="label">Direct ${tip(`${dirP}% (${num(ch.direct)} sessions). Sessions GA4 couldn't attribute to a known external source. This includes typed URLs and bookmarks, but also traffic from messaging apps, PDF links, email campaigns with missing UTM tags, and other sources where referrer data is unavailable or stripped. Treat this as 'unknown origin' rather than purely direct navigation.`)}</div>
         <div class="value">${dirP}%</div>
         <div class="sub">${num(ch.direct)} sessions</div>
       </div>
