@@ -428,7 +428,7 @@ function channelSection(ch, isAuth) {
     </div>
     <div class="cards">
       <div class="card total">
-        <div class="label">Total Sessions ${tip('All sessions in the selected property and date range' + (isAuth ? ', filtered to authenticated users only.' : '.'))}</div>
+        <div class="label">Total Sessions ${tip('All sessions in the selected property and date range, excluding Unassigned channel sessions' + (isAuth ? ', filtered to authenticated users only.' : '. Unassigned sessions are shown as a footnote below.'))}</div>
         <div class="value">${num(t)}</div>
       </div>
       <div class="card ext">
@@ -567,7 +567,7 @@ function searchSection(s, isAuth) {
     </div>
     <div class="cards">
       <div class="card total">
-        <div class="label">Total Sessions ${tip('All sessions in the selected scope and date range' + (isAuth ? ', filtered to authenticated users only.' : '.'))}</div>
+        <div class="label">Total Sessions ${tip('Sessions counted by search behaviour — matches GA4\'s standard session count (excludes Unassigned)' + (isAuth ? ', filtered to authenticated users only.' : '.'))}</div>
         <div class="value">${num(t)}</div>
       </div>
       <div class="card srch">
