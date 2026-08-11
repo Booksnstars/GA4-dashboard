@@ -34,6 +34,7 @@ EXTERNAL_DISCOVERY_CHANNELS = {
     "Organic AI", "AI Search",
 }
 DIRECT_CHANNELS = {"Direct"}
+EXCLUDED_CHANNELS = {"Unassigned"}
 
 
 def _auth_filter():
@@ -164,6 +165,8 @@ def categorise_channels(rows):
     external = direct = other = 0
     breakdown = []
     for channel, sessions in rows:
+        if channel in EXCLUDED_CHANNELS:
+            continue
         breakdown.append({"channel": channel, "sessions": sessions})
         if channel in EXTERNAL_DISCOVERY_CHANNELS:
             external += sessions
