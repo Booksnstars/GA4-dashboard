@@ -586,7 +586,7 @@ function searchSection(s, isAuth) {
     <div class="section-title">2 · Session Behaviour — Search vs Content-Only${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
       ${tip('Whether sessions included a search interaction. Measured using the view_search_results and search_within_content GA4 events.')}
     </div>
-    ${methodology('method-s2', 'Search sessions pull from GA4 event data — specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions, so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page — this matches Lorenzo\'s Looker Studio methodology.')}
+    ${methodology('method-s2', 'Search sessions pull from GA4 event data — specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions, so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page.')}
     <div class="cards">
       <div class="card total">
         <div class="label">Total Sessions ${tip('Sessions counted by search behaviour — matches GA4\'s standard session count (excludes Unassigned)' + (isAuth ? ', filtered to authenticated users only.' : '.'))}</div>
