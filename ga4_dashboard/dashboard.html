@@ -98,8 +98,19 @@ header h1 { font-size: 1.4rem; font-weight: 600; }
 .section { margin-bottom: 40px; }
 .section-title {
   font-size: 1.05rem; font-weight: 600; color: var(--sage);
-  margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--sage-light);
+  margin-bottom: 8px; padding-bottom: 8px; border-bottom: 2px solid var(--sage-light);
 }
+.methodology-toggle {
+  font-size: .75rem; color: var(--muted); cursor: pointer; user-select: none;
+  margin-bottom: 14px; display: inline-flex; align-items: center; gap: 4px;
+}
+.methodology-toggle:hover { color: var(--sage); }
+.methodology-body {
+  display: none; font-size: .78rem; color: var(--muted);
+  background: var(--bg); border-left: 3px solid var(--sage-light);
+  padding: 8px 12px; border-radius: 4px; margin-bottom: 14px;
+}
+.methodology-body.open { display: block; }
 
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
 .card { background: white; border-radius: var(--radius); padding: 18px 20px; border: 1px solid var(--border); border-top-width: 4px; }
@@ -384,6 +395,13 @@ function showSkeleton() {
 function pct(part, total) { return total ? Math.round(part / total * 1000) / 10 : 0; }
 function num(n) { return (n || 0).toLocaleString(); }
 
+function methodology(id, text) {
+  return `<span class="methodology-toggle" onclick="(function(el){var b=document.getElementById('${id}');b.classList.toggle('open');el.querySelector('.m-arrow').textContent=b.classList.contains('open')?'▲':'▼';})(this)">
+    <span class="m-arrow">▼</span> How this data is collected
+  </span>
+  <div class="methodology-body" id="${id}">${text}</div>`;
+}
+
 function tip(text, edge) {
   const cls = edge ? ` tip-${edge}` : '';
   return `<span class="tip-wrap${cls}"><span class="tip-icon">i</span><div class="tip-box">${text}</div></span>`;
@@ -427,6 +445,7 @@ function channelSection(ch, isAuth) {
     <div class="section-title">1 · Session Origin — External Discovery vs Direct <span style="font-weight:400;color:var(--muted);font-size:.9rem">(${label})</span>${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
       ${tip('How sessions arrived at the site, grouped by channel. Switching between Combined/SRM/SK/CQ changes the property scope; the date range above changes the time window.')}
     </div>
+    ${methodology('method-s1', 'Pulls from GA4 session channel grouping — how each session started and what brought the user to the site. Covers all traffic sources including organic search, direct, referral, and AI assistants.')}
     <div class="cards">
       <div class="card total">
         <div class="label">Total Sessions ${tip('All sessions in the selected property and date range, excluding Unassigned channel sessions' + (isAuth ? ', filtered to authenticated users only.' : '. Unassigned sessions are shown as a footnote below.'))}</div>
@@ -497,6 +516,7 @@ function funnelSection(f) {
     <div class="section-title">3 · Authenticated User Journey Funnel <span class="auth-badge">Authenticated only</span>
       ${tip('Traces what authenticated users did after landing on the site. Always filtered to authenticated sessions regardless of the toggle above.')}
     </div>
+    ${methodology('method-s3', 'Uses GA4 landing page data to identify where each authenticated session started. Next actions are estimated from session-level engagement signals — GA4 does not expose within-session page sequences directly via the API.')}
     <div class="funnel-wrap">
 
       <div style="text-align:center;margin-bottom:6px;font-size:.8rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">
@@ -566,6 +586,7 @@ function searchSection(s, isAuth) {
     <div class="section-title">2 · Session Behaviour — Search vs Content-Only${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
       ${tip('Whether sessions included a search interaction. Measured using the view_search_results and search_within_content GA4 events.')}
     </div>
+    ${methodology('method-s2', 'Search sessions pull from GA4 event data — specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions, so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page — this matches Lorenzo\'s Looker Studio methodology.')}
     <div class="cards">
       <div class="card total">
         <div class="label">Total Sessions ${tip('Sessions counted by search behaviour — matches GA4\'s standard session count (excludes Unassigned)' + (isAuth ? ', filtered to authenticated users only.' : '.'))}</div>
