@@ -369,14 +369,26 @@ def _pct(n, d):
 
 
 def fetch_funnel_data(client, property_id, start_date, end_date, auth_only=False):
-    af = _auth_filter() if auth_only else None
+    af   = _auth_filter() if auth_only else None
+    base = dict(
+        property=f"properties/{property_id}",
+        date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
+    )
+
+    # Direct session count (no dimension) -- same query as fetch_search_data Q1,
+    # so Section 3 base matches Section 2 exactly.
+    base_resp  = client.run_report(RunReportRequest(
+        **base,
+        metrics=[Metric(name="sessions")],
+        dimension_filter=af,
+    ))
+    base_total = int(base_resp.rows[0].metric_values[0].value) if base_resp.rows else 0
 
     # Q1: sessions by landing page -> entry point breakdown
     resp = client.run_report(RunReportRequest(
-        property=f"properties/{property_id}",
+        **base,
         dimensions=[Dimension(name="landingPage")],
         metrics=[Metric(name="sessions"), Metric(name="engagedSessions")],
-        date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
         dimension_filter=af,
         limit=5000,
     ))
@@ -386,7 +398,9 @@ def fetch_funnel_data(client, property_id, start_date, end_date, auth_only=False
         cat = _categorise_landing(row.dimension_values[0].value)
         entry_n[cat]   += int(row.metric_values[0].value)
         entry_eng[cat] += int(row.metric_values[1].value)
-    total = sum(entry_n.values())
+    # Use base_total (direct query) as denominator so entry % match Section 2's population.
+    # entry_n values are still the dimensional counts; percentages are vs the true total.
+    total = base_total or sum(entry_n.values())
 
     # Q2: content landers who searched
     c_filter  = _and(af, _contains_or("landingPage", CONTENT_URL_PATTERNS))
@@ -416,6 +430,7 @@ def fetch_funnel_data(client, property_id, start_date, end_date, auth_only=False
     s_exit  = max(0, st - se);  s_other = max(0, se - s_clicked)
 
     return {
+        "base_total": base_total,
         "entry": {
             "total":   total,
             "content": {"n": ct,                "pct": _pct(ct,                total)},
@@ -449,6 +464,7 @@ def merge_funnel(f1, f2):
     st = f1["search_landers"]["total"]  + f2["search_landers"]["total"]
 
     return {
+        "base_total": f1.get("base_total", 0) + f2.get("base_total", 0),
         "entry": {
             "total":   t,
             "content": add_node(f1["entry"]["content"], f2["entry"]["content"], t),

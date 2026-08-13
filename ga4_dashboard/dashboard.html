@@ -520,11 +520,15 @@ function channelSection(ch, isAuth) {
 
 function searchSection(s, isAuth) {
   const t     = s.total || 0;
-  const srchP = pct(s.searched,         t);
-  const cnsP  = pct(s.content_no_search, t);
-  const neitP = pct(s.neither,           t);
-  const rcP   = pct(s.searched_reached_content, s.searched);
-  const rncP  = pct(s.searched_no_content,      s.searched);
+  const cns   = s.content_no_search || 0;
+  const neit  = s.neither           || 0;
+  const src   = s.searched_reached_content || 0;
+  const snc   = s.searched_no_content      || 0;
+  const srchP = pct(s.searched || 0, t);
+  const cnsP  = pct(cns,  t);
+  const neitP = pct(neit, t);
+  const rcP   = pct(src, s.searched || 1);
+  const rncP  = pct(snc, s.searched || 1);
 
   const baseLabel = isAuth
     ? `Base: ${num(t)} authenticated sessions`
@@ -554,22 +558,22 @@ function searchSection(s, isAuth) {
         <div class="sub">${num(s.searched)} sessions</div>
       </div>
       <div class="card nosrch">
-        <div class="label">Content, No Search ${tip(`${cnsP}% of sessions (${num(s.content_no_search)}) viewed at least one content page but never used search. Includes any session where a content URL was visited and no search event fired.`)}</div>
+        <div class="label">Content, No Search ${tip(`${cnsP}% of sessions (${num(cns)}) viewed at least one content page but never used search. Includes any session where a content URL was visited and no search event fired.`)}</div>
         <div class="value">${cnsP}%</div>
-        <div class="sub">${num(s.content_no_search)} sessions</div>
+        <div class="sub">${num(cns)} sessions</div>
       </div>
       <div class="card neither">
-        <div class="label">Neither ${tip(`${neitP}% of sessions (${num(s.neither)}) used neither search nor viewed a content page - for example sessions that only visited the homepage, portal pages, or exited immediately.`, 'right')}</div>
+        <div class="label">Neither ${tip(`${neitP}% of sessions (${num(neit)}) used neither search nor viewed a content page - for example sessions that only visited the homepage, portal pages, or exited immediately.`, 'right')}</div>
         <div class="value">${neitP}%</div>
-        <div class="sub">${num(s.neither)} sessions</div>
+        <div class="sub">${num(neit)} sessions</div>
       </div>
     </div>
     <div class="search-sub">
       <div class="search-sub-header">&#x21b3; Of those who searched (${num(s.searched)} sessions):</div>
-      ${subBar('reached',     'Reached a content page',         rcP,  s.searched_reached_content,
-        `${rcP}% of searchers (${num(s.searched_reached_content)} sessions) visited at least one content page during the same session. Note: GA4 does not expose page sequences, so the content view may have occurred before or after the search.`)}
-      ${subBar('not-reached', 'Did not reach a content page',   rncP, s.searched_no_content,
-        `${rncP}% of searchers (${num(s.searched_no_content)} sessions) searched but did not visit a recognised content page. They may have exited from search results or navigated to non-content areas.`)}
+      ${subBar('reached',     'Reached a content page',         rcP,  src,
+        `${rcP}% of searchers (${num(src)} sessions) visited at least one content page during the same session. Note: GA4 does not expose page sequences, so the content view may have occurred before or after the search.`)}
+      ${subBar('not-reached', 'Did not reach a content page',   rncP, snc,
+        `${rncP}% of searchers (${num(snc)} sessions) searched but did not visit a recognised content page. They may have exited from search results or navigated to non-content areas.`)}
     </div>
     <div class="cards">
       <div class="card total">
@@ -593,9 +597,10 @@ function funnelSection(f, isAuth) {
   const e  = f.entry;
   const cl = f.content_landers;
   const sl = f.search_landers;
+  const baseN = f.base_total || e.total;
   const baseLabel = isAuth
-    ? `Base: ${num(e.total)} authenticated sessions`
-    : `Base: ${num(e.total)} sessions - all users`;
+    ? `Base: ${num(baseN)} authenticated sessions`
+    : `Base: ${num(baseN)} sessions - all users`;
 
   function fbox(cls, name, p, n, tooltip, edge) {
     return `<div class="f-box ${cls}">
