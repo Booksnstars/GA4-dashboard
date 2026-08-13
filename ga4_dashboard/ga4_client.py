@@ -16,14 +16,12 @@ PROPERTIES = {
 LOGIN_STATUS_VALUE = "true"   # value of customEvent:login_status that means logged in
 
 CONTENT_URL_PATTERNS = [
-    # existing
     '/video/', '/foundations/', '/hnbk/', '/ency/', '/books/', '/cases/', '/skills/',
-    '/book/', '/mono/', '/report/', '/cqresearcher', '/chapter/', '/reference/',
+    '/book/', '/mono/', '/report/', '/cqresearcher/report/', '/chapter/', '/reference/',
     '/books-and-reference', '/methods-map', '/dict/', '/chpt/',
-    # SK-specific additions
     '/referenceandbooks', '/business', '/videocollections',
-    # SRM-specific additions
     '/project-planner', '/which-stats-test',
+    '/pro-con/',
 ]
 ERROR_URL_PATTERNS = ['/error']  # matches /Error, /error/handleStatusCode, etc.
 SEARCH_URL_PATTERNS = ['/search']  # kept for _contains_or filter; categorisation logic below
@@ -115,6 +113,12 @@ def _categorise_landing(url):
     # Error pages -- check before content so /error/* doesn't fall into other
     if any(p in path for p in ERROR_URL_PATTERNS):
         return 'error'
+
+    # CQ browse/listing page: /cqresearcher without a content sub-path is portal.
+    # Must come before the content check so /cqresearcher/ alone doesn't match
+    # /cqresearcher/report/ or /pro-con/ patterns.
+    if '/cqresearcher' in path and '/report/' not in path and '/pro-con/' not in path:
+        return 'portal'
 
     # Content pages take priority
     if any(p in u for p in CONTENT_URL_PATTERNS):
