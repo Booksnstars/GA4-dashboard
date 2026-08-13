@@ -108,7 +108,7 @@ def _categorise_landing(url):
     u = url.lower()
     path = u.split('?')[0].rstrip('/')   # path without query string or trailing slash
 
-    # Error pages — check before content so /error/* doesn't fall into other
+    # Error pages -- check before content so /error/* doesn't fall into other
     if any(p in path for p in ERROR_URL_PATTERNS):
         return 'error'
 
@@ -147,6 +147,7 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
     )
     auth_f = _auth_filter() if auth_only else None
 
+    # Q1: total sessions
     total_resp = client.run_report(RunReportRequest(
         **base,
         metrics=[Metric(name="sessions")],
@@ -154,43 +155,73 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
     ))
     total = int(total_resp.rows[0].metric_values[0].value) if total_resp.rows else 0
 
-    search_f    = _search_filter()
-    combined_f  = _and(auth_f, search_f)
-    search_resp = client.run_report(RunReportRequest(
+    # Q2: sessions with a search event
+    srch_f    = _and(auth_f, _search_filter())
+    srch_resp = client.run_report(RunReportRequest(
         **base,
         metrics=[Metric(name="sessions")],
-        dimension_filter=combined_f,
+        dimension_filter=srch_f,
     ))
-    searched = int(search_resp.rows[0].metric_values[0].value) if search_resp.rows else 0
+    searched = int(srch_resp.rows[0].metric_values[0].value) if srch_resp.rows else 0
 
-    # Total individual view_search_results events (one session can fire multiple)
-    events_f    = _and(auth_f, FilterExpression(filter=Filter(
+    # Q3: sessions with any content page view (regardless of search)
+    content_f   = _and(auth_f, _contains_or("pagePath", CONTENT_URL_PATTERNS))
+    cnt_resp    = client.run_report(RunReportRequest(
+        **base,
+        metrics=[Metric(name="sessions")],
+        dimension_filter=content_f,
+    ))
+    sessions_with_content = int(cnt_resp.rows[0].metric_values[0].value) if cnt_resp.rows else 0
+
+    # Q4: sessions with search event AND a content page view (for sub-breakdown)
+    sc_f     = _and(srch_f, _contains_or("pagePath", CONTENT_URL_PATTERNS))
+    sc_resp  = client.run_report(RunReportRequest(
+        **base,
+        metrics=[Metric(name="sessions")],
+        dimension_filter=sc_f,
+    ))
+    searched_reached_content = int(sc_resp.rows[0].metric_values[0].value) if sc_resp.rows else 0
+
+    content_no_search = max(0, sessions_with_content - searched_reached_content)
+    neither           = max(0, total - searched - content_no_search)
+
+    # Q5: individual view_search_results events
+    events_f  = _and(auth_f, FilterExpression(filter=Filter(
         field_name="eventName",
         string_filter=Filter.StringFilter(value="view_search_results",
                                           match_type=Filter.StringFilter.MatchType.EXACT),
     )))
-    events_resp = client.run_report(RunReportRequest(
+    ev_resp   = client.run_report(RunReportRequest(
         **base,
         metrics=[Metric(name="eventCount")],
         dimension_filter=events_f,
     ))
-    search_events = int(events_resp.rows[0].metric_values[0].value) if events_resp.rows else 0
+    search_events = int(ev_resp.rows[0].metric_values[0].value) if ev_resp.rows else 0
 
-    # Content pageviews where the referrer was a search results page
-    referrer_f    = _and(auth_f, FilterExpression(filter=Filter(
+    # Q6: content page views where referrer was a search results page
+    ref_f    = _and(auth_f, FilterExpression(filter=Filter(
         field_name="pageReferrer",
         string_filter=Filter.StringFilter(value="/search/results",
                                           match_type=Filter.StringFilter.MatchType.CONTAINS,
                                           case_sensitive=False),
     )))
-    referrer_resp = client.run_report(RunReportRequest(
+    ref_resp = client.run_report(RunReportRequest(
         **base,
         metrics=[Metric(name="screenPageViews")],
-        dimension_filter=referrer_f,
+        dimension_filter=ref_f,
     ))
-    content_views_from_search = int(referrer_resp.rows[0].metric_values[0].value) if referrer_resp.rows else 0
+    content_views_from_search = int(ref_resp.rows[0].metric_values[0].value) if ref_resp.rows else 0
 
-    return searched, max(0, total - searched), total, search_events, content_views_from_search
+    return {
+        "total":                     total,
+        "searched":                  searched,
+        "content_no_search":         content_no_search,
+        "neither":                   neither,
+        "searched_reached_content":  searched_reached_content,
+        "searched_no_content":       max(0, searched - searched_reached_content),
+        "search_events":             search_events,
+        "content_views_from_search": content_views_from_search,
+    }
 
 
 def categorise_channels(rows):
@@ -239,7 +270,7 @@ def list_landing_pages_diagnostic(client, start_date, end_date):
             key=lambda x: -x[1],
         )
 
-        print(f"\n  [{key.upper()} — property {prop_id}] Top 20 auth landing pages:")
+        print(f"\n  [{key.upper()} - property {prop_id}] Top 20 auth landing pages:")
         for url, n in rows[:20]:
             cat = _categorise_landing(url)
             print(f"    {cat:<8}  {n:>8,}  {url}")
@@ -265,7 +296,7 @@ def list_event_names(client, start_date, end_date):
             [(r.dimension_values[0].value, int(r.metric_values[0].value)) for r in resp.rows],
             key=lambda x: -x[1],
         )
-        print(f"\n  [{key.upper()} — property {prop_id}]")
+        print(f"\n  [{key.upper()} - property {prop_id}]")
         for name, count in events:
             print(f"    {name:<45} {count:>12,}")
     print()
@@ -275,7 +306,7 @@ AUTH_KEYWORDS = {"login", "auth", "sign", "user"}
 
 def list_auth_events(client, start_date, end_date):
     """Prints event names matching auth-related keywords from both properties."""
-    print(f"\n🔐  Auth-related event names ({start_date} → {end_date}):")
+    print(f"\n  Auth-related event names ({start_date} -> {end_date}):")
     for key, prop_id in PROPERTIES.items():
         resp = client.run_report(RunReportRequest(
             property=f"properties/{prop_id}",
@@ -292,7 +323,7 @@ def list_auth_events(client, start_date, end_date):
             ],
             key=lambda x: -x[1],
         )
-        print(f"\n  [{key.upper()} — property {prop_id}]")
+        print(f"\n  [{key.upper()} - property {prop_id}]")
         if matches:
             for name, count in matches:
                 print(f"    {name:<45} {count:>12,}")
@@ -308,7 +339,7 @@ def list_custom_dimension_values(client, start_date, end_date):
         ("customEvent:authentication_subscription","authentication_subscription"),
     ]
     for key, prop_id in PROPERTIES.items():
-        print(f"\n  [{key.upper()} — property {prop_id}]")
+        print(f"\n  [{key.upper()} - property {prop_id}]")
         for api_name, label in dims:
             try:
                 resp = client.run_report(RunReportRequest(
@@ -337,18 +368,17 @@ def _pct(n, d):
     return round(n / d * 100, 1) if d else 0
 
 
-def fetch_funnel_data(client, property_id, start_date, end_date):
-    """Always auth-filtered — this funnel is specifically for authenticated users."""
-    af = _auth_filter()
+def fetch_funnel_data(client, property_id, start_date, end_date, auth_only=False):
+    af = _auth_filter() if auth_only else None
 
-    # Q1: all auth sessions by landing page → entry point breakdown
+    # Q1: sessions by landing page -> entry point breakdown
     resp = client.run_report(RunReportRequest(
         property=f"properties/{property_id}",
         dimensions=[Dimension(name="landingPage")],
         metrics=[Metric(name="sessions"), Metric(name="engagedSessions")],
         date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
         dimension_filter=af,
-        limit=500,
+        limit=5000,
     ))
     entry_n   = {'content': 0, 'search': 0, 'portal': 0, 'error': 0, 'other': 0}
     entry_eng = {'content': 0, 'search': 0, 'portal': 0, 'error': 0, 'other': 0}
@@ -359,8 +389,8 @@ def fetch_funnel_data(client, property_id, start_date, end_date):
     total = sum(entry_n.values())
 
     # Q2: content landers who searched
-    c_filter    = _and(af, _contains_or("landingPage", CONTENT_URL_PATTERNS))
-    cs_filter   = _and(c_filter, _search_filter())
+    c_filter  = _and(af, _contains_or("landingPage", CONTENT_URL_PATTERNS))
+    cs_filter = _and(c_filter, _search_filter())
     r2 = client.run_report(RunReportRequest(
         property=f"properties/{property_id}",
         metrics=[Metric(name="sessions")],
@@ -370,8 +400,8 @@ def fetch_funnel_data(client, property_id, start_date, end_date):
     c_searched = int(r2.rows[0].metric_values[0].value) if r2.rows else 0
 
     # Q3: search landers who clicked through to a content page
-    s_filter    = _and(af, _contains_or("landingPage", SEARCH_URL_PATTERNS))
-    sc_filter   = _and(s_filter, _event_exact("search_content_clickthrough"))
+    s_filter  = _and(af, _contains_or("landingPage", SEARCH_URL_PATTERNS))
+    sc_filter = _and(s_filter, _event_exact("search_content_clickthrough"))
     r3 = client.run_report(RunReportRequest(
         property=f"properties/{property_id}",
         metrics=[Metric(name="sessions")],
@@ -396,15 +426,15 @@ def fetch_funnel_data(client, property_id, start_date, end_date):
         },
         "content_landers": {
             "total":         ct,
-            "exited":        {"n": c_exit,     "pct": _pct(c_exit,     ct)},
+            "exited":        {"n": c_exit,      "pct": _pct(c_exit,      ct)},
             "searched":      {"n": c_searched,  "pct": _pct(c_searched,  ct)},
             "other_engaged": {"n": c_other,     "pct": _pct(c_other,     ct)},
         },
         "search_landers": {
-            "total":          st,
-            "exited":         {"n": s_exit,    "pct": _pct(s_exit,    st)},
-            "clicked_content":{"n": s_clicked, "pct": _pct(s_clicked, st)},
-            "other_engaged":  {"n": s_other,   "pct": _pct(s_other,   st)},
+            "total":           st,
+            "exited":          {"n": s_exit,    "pct": _pct(s_exit,    st)},
+            "clicked_content": {"n": s_clicked, "pct": _pct(s_clicked, st)},
+            "other_engaged":   {"n": s_other,   "pct": _pct(s_other,   st)},
         },
     }
 
@@ -434,10 +464,10 @@ def merge_funnel(f1, f2):
             "other_engaged": add_node(f1["content_landers"]["other_engaged"], f2["content_landers"]["other_engaged"], ct),
         },
         "search_landers": {
-            "total":          st,
-            "exited":         add_node(f1["search_landers"]["exited"],         f2["search_landers"]["exited"],         st),
-            "clicked_content":add_node(f1["search_landers"]["clicked_content"],f2["search_landers"]["clicked_content"],st),
-            "other_engaged":  add_node(f1["search_landers"]["other_engaged"],  f2["search_landers"]["other_engaged"],  st),
+            "total":           st,
+            "exited":          add_node(f1["search_landers"]["exited"],          f2["search_landers"]["exited"],          st),
+            "clicked_content": add_node(f1["search_landers"]["clicked_content"], f2["search_landers"]["clicked_content"], st),
+            "other_engaged":   add_node(f1["search_landers"]["other_engaged"],   f2["search_landers"]["other_engaged"],   st),
         },
     }
 
@@ -447,39 +477,46 @@ def fetch_all(client, start_date, end_date, auth_only=False):
     sk_ch  = fetch_channel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
     cq_ch  = fetch_channel_data(client, PROPERTIES["cq"],  start_date, end_date, auth_only)
 
-    srm_s, srm_ns, srm_t, srm_se, srm_cvs = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
-    sk_s,  sk_ns,  sk_t,  sk_se,  sk_cvs  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
-    cq_s,  cq_ns,  cq_t,  cq_se,  cq_cvs  = fetch_search_data(client, PROPERTIES["cq"],  start_date, end_date, auth_only)
+    srm_s = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
+    sk_s  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
+    cq_s  = fetch_search_data(client, PROPERTIES["cq"],  start_date, end_date, auth_only)
 
-    srm_funnel = fetch_funnel_data(client, PROPERTIES["srm"], start_date, end_date)
-    sk_funnel  = fetch_funnel_data(client, PROPERTIES["sk"],  start_date, end_date)
-    cq_funnel  = fetch_funnel_data(client, PROPERTIES["cq"],  start_date, end_date)
+    srm_funnel = fetch_funnel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
+    sk_funnel  = fetch_funnel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
+    cq_funnel  = fetch_funnel_data(client, PROPERTIES["cq"],  start_date, end_date, auth_only)
 
     combined_ch = merge_channel_rows(merge_channel_rows(srm_ch, sk_ch), cq_ch)
+
+    def _sum(key):
+        return srm_s[key] + sk_s[key] + cq_s[key]
+
     return {
         "srm": {
             "channels": categorise_channels(srm_ch),
-            "search":   {"searched": srm_s, "not_searched": srm_ns, "total": srm_t, "search_events": srm_se, "content_views_from_search": srm_cvs},
+            "search":   srm_s,
             "funnel":   srm_funnel,
         },
         "sk": {
             "channels": categorise_channels(sk_ch),
-            "search":   {"searched": sk_s, "not_searched": sk_ns, "total": sk_t, "search_events": sk_se, "content_views_from_search": sk_cvs},
+            "search":   sk_s,
             "funnel":   sk_funnel,
         },
         "cq": {
             "channels": categorise_channels(cq_ch),
-            "search":   {"searched": cq_s, "not_searched": cq_ns, "total": cq_t, "search_events": cq_se, "content_views_from_search": cq_cvs},
+            "search":   cq_s,
             "funnel":   cq_funnel,
         },
         "combined": {
             "channels": categorise_channels(combined_ch),
             "search": {
-                "searched":                  srm_s  + sk_s  + cq_s,
-                "not_searched":              srm_ns + sk_ns + cq_ns,
-                "total":                     srm_t  + sk_t  + cq_t,
-                "search_events":             srm_se + sk_se + cq_se,
-                "content_views_from_search": srm_cvs + sk_cvs + cq_cvs,
+                "total":                     _sum("total"),
+                "searched":                  _sum("searched"),
+                "content_no_search":         _sum("content_no_search"),
+                "neither":                   _sum("neither"),
+                "searched_reached_content":  _sum("searched_reached_content"),
+                "searched_no_content":       _sum("searched_no_content"),
+                "search_events":             _sum("search_events"),
+                "content_views_from_search": _sum("content_views_from_search"),
             },
             "funnel": merge_funnel(merge_funnel(srm_funnel, sk_funnel), cq_funnel),
         },

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GA4 Dashboard — SAGE Publishing</title>
+<title>GA4 Dashboard - SAGE Publishing</title>
 <style>
 :root {
   --sage:       #2e7d32;
@@ -13,6 +13,7 @@
   --oth:        #6a1b9a;
   --srch:       #00838f;
   --nosrch:     #558b2f;
+  --neither:    #546e7a;
   --text:       #1a1a1a;
   --muted:      #666;
   --border:     #e0e0e0;
@@ -100,6 +101,13 @@ header h1 { font-size: 1.4rem; font-weight: 600; }
   font-size: 1.05rem; font-weight: 600; color: var(--sage);
   margin-bottom: 8px; padding-bottom: 8px; border-bottom: 2px solid var(--sage-light);
 }
+.section-base {
+  font-size: .8rem; color: var(--muted);
+  margin-bottom: 12px;
+  padding: 4px 10px;
+  background: var(--bg); border-radius: 4px;
+  display: inline-block;
+}
 .methodology-toggle {
   font-size: .75rem; color: var(--muted); cursor: pointer; user-select: none;
   margin-bottom: 14px; display: inline-flex; align-items: center; gap: 4px;
@@ -117,12 +125,13 @@ header h1 { font-size: 1.4rem; font-weight: 600; }
 .card .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 8px; }
 .card .value { font-size: 2rem; font-weight: 700; line-height: 1; }
 .card .sub   { font-size: 0.8rem; color: var(--muted); margin-top: 5px; }
-.card.total  { border-top-color: var(--sage);   } .card.total  .value { color: var(--sage);   }
-.card.ext    { border-top-color: var(--ext);    } .card.ext    .value { color: var(--ext);    }
-.card.dir    { border-top-color: var(--dir);    } .card.dir    .value { color: var(--dir);    }
-.card.oth    { border-top-color: var(--oth);    } .card.oth    .value { color: var(--oth);    }
-.card.srch   { border-top-color: var(--srch);   } .card.srch   .value { color: var(--srch);  }
-.card.nosrch { border-top-color: var(--nosrch); } .card.nosrch .value { color: var(--nosrch);}
+.card.total   { border-top-color: var(--sage);    } .card.total   .value { color: var(--sage);    }
+.card.ext     { border-top-color: var(--ext);     } .card.ext     .value { color: var(--ext);     }
+.card.dir     { border-top-color: var(--dir);     } .card.dir     .value { color: var(--dir);     }
+.card.oth     { border-top-color: var(--oth);     } .card.oth     .value { color: var(--oth);     }
+.card.srch    { border-top-color: var(--srch);    } .card.srch    .value { color: var(--srch);   }
+.card.nosrch  { border-top-color: var(--nosrch);  } .card.nosrch  .value { color: var(--nosrch); }
+.card.neither { border-top-color: var(--neither); } .card.neither .value { color: var(--neither); }
 
 .bar-wrap { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 20px 24px; margin-bottom: 24px; }
 .bar-header { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); margin-bottom: 10px; }
@@ -132,11 +141,12 @@ header h1 { font-size: 1.4rem; font-weight: 600; }
   font-size: 0.78rem; font-weight: 600; color: white;
   min-width: 0; overflow: hidden; white-space: nowrap; transition: width .5s ease;
 }
-.seg.ext    { background: var(--ext);    }
-.seg.dir    { background: var(--dir);    }
-.seg.oth    { background: var(--oth);    }
-.seg.srch   { background: var(--srch);   }
-.seg.nosrch { background: var(--nosrch); }
+.seg.ext     { background: var(--ext);     }
+.seg.dir     { background: var(--dir);     }
+.seg.oth     { background: var(--oth);     }
+.seg.srch    { background: var(--srch);    }
+.seg.nosrch  { background: var(--nosrch);  }
+.seg.neither { background: var(--neither); }
 
 .legend { display: flex; gap: 18px; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
@@ -158,7 +168,7 @@ tr:hover td { background: #fafafa; }
 .skel-bar   { height: 140px; }
 .skel-table { height: 200px; }
 
-/* ── Tooltips ── */
+/* -- Tooltips -- */
 .tip-wrap { position: relative; display: inline-block; vertical-align: middle; margin-left: 4px; }
 .tip-icon {
   font-style: normal; font-size: 0.72rem; color: var(--muted);
@@ -202,9 +212,32 @@ tr:hover td { background: #fafafa; }
 .tip-left  .tip-box  { left: 0;    transform: none; }
 .tip-left  .tip-box::after { left: 14px; transform: none; }
 
-/* ── Funnel ── */
+/* -- Search sub-breakdown -- */
+.search-sub {
+  background: white;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--srch);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 16px 20px;
+  margin: -10px 0 24px 24px;
+}
+.search-sub-header {
+  font-size: .85rem; font-weight: 600; color: var(--srch); margin-bottom: 14px;
+}
+.search-sub-bar { margin-bottom: 10px; }
+.search-sub-bar:last-child { margin-bottom: 0; }
+.search-sub-label { display: flex; justify-content: space-between; font-size: .82rem; margin-bottom: 4px; }
+.search-sub-label .s-name { font-weight: 500; }
+.search-sub-label .s-stat { color: var(--muted); }
+.s-track { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.s-fill  { height: 100%; border-radius: 4px; transition: width .5s ease; }
+.s-fill.reached  { background: var(--srch);   }
+.s-fill.not-reached { background: var(--neither); }
+
+/* -- Funnel -- */
 .funnel-wrap { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 28px 32px; }
 .funnel-note { font-size: .78rem; color: var(--muted); margin-top: 16px; padding-left: 18px; }
+.funnel-caveat { font-size: .78rem; color: var(--muted); margin-top: 14px; font-style: italic; }
 .unassigned-note { font-size: .75rem; color: var(--muted); margin-top: 8px; }
 .funnel-note li { margin-bottom: 3px; }
 .funnel-row  { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
@@ -258,8 +291,8 @@ footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--mut
 
 <header>
   <div>
-    <h1>GA4 Session Analytics — SAGE Publishing</h1>
-    <div class="subtitle" id="header-subtitle">Loading…</div>
+    <h1>GA4 Session Analytics - SAGE Publishing</h1>
+    <div class="subtitle" id="header-subtitle">Loading...</div>
   </div>
 </header>
 
@@ -321,7 +354,6 @@ let currentData = null;
 })();
 
 function fmt(d) {
-  // Use local date parts to avoid UTC-offset issues (e.g. BST users getting wrong date from toISOString)
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
@@ -337,7 +369,7 @@ async function loadData() {
   const end   = document.getElementById('date-end').value;
   if (!start || !end) return;
 
-  setStatus('loading', 'Fetching data…');
+  setStatus('loading', 'Fetching data...');
   document.getElementById('refresh-btn').disabled = true;
   showSkeleton();
 
@@ -359,13 +391,13 @@ function exportHTML() {
   const start = document.getElementById('date-start').value;
   const end   = document.getElementById('date-end').value;
   if (!start || !end) return;
-  const auth = authOnly() ? '&auth=1' : '';
+  const auth   = authOnly() ? '&auth=1' : '';
   const suffix = authOnly() ? '_authenticated' : '';
-  const btn = document.getElementById('export-btn');
+  const btn    = document.getElementById('export-btn');
   btn.disabled = true;
-  btn.textContent = 'Exporting…';
+  btn.textContent = 'Exporting...';
   const a = document.createElement('a');
-  a.href = `/export?start=${start}&end=${end}${auth}`;
+  a.href     = `/export?start=${start}&end=${end}${auth}`;
   a.download = `sage_ga4_${start}_to_${end}${suffix}.html`;
   a.click();
   setTimeout(() => { btn.disabled = false; btn.textContent = 'Export HTML'; }, 2000);
@@ -373,20 +405,20 @@ function exportHTML() {
 
 function setStatus(cls, msg) {
   const el = document.getElementById('status-msg');
-  el.className = 'status-msg ' + cls;
+  el.className   = 'status-msg ' + cls;
   el.textContent = msg;
 }
 
 function showSkeleton() {
   document.getElementById('main-content').innerHTML = `
     <div class="section">
-      <div class="section-title">1 · Session Origin</div>
+      <div class="section-title">1 &middot; Session Origin</div>
       <div class="cards">${'<div class="card skeleton skel-card"></div>'.repeat(4)}</div>
       <div class="skeleton skel-bar" style="margin-bottom:24px"></div>
       <div class="skeleton skel-table"></div>
     </div>
     <div class="section" style="margin-top:32px">
-      <div class="section-title">2 · Search Behaviour</div>
+      <div class="section-title">2 &middot; Session Behaviour</div>
       <div class="cards">${'<div class="card skeleton skel-card"></div>'.repeat(3)}</div>
       <div class="skeleton skel-bar"></div>
     </div>`;
@@ -408,22 +440,20 @@ function tip(text, edge) {
 }
 
 function renderAll(data) {
-  const d       = data[currentView];
-  const meta    = data.meta;
-  const isAuth  = meta.auth_only;
+  const d        = data[currentView];
+  const meta     = data.meta;
+  const isAuth   = meta.auth_only;
   const propLine = currentView === 'combined'
-    ? `SRM (${PROPS.srm}) + SK (${PROPS.sk})`
+    ? `SRM (${PROPS.srm}) + SK (${PROPS.sk}) + CQ (${PROPS.cq})`
     : `Property ${PROPS[currentView]}`;
-  const authBadge = isAuth
-    ? ' <span class="auth-badge">Authenticated only</span>'
-    : '';
+  const authBadge = isAuth ? ' <span class="auth-badge">Authenticated only</span>' : '';
 
   document.getElementById('header-subtitle').innerHTML =
-    `${propLine}  ·  ${meta.start} → ${meta.end}${authBadge}`;
+    `${propLine}  &middot;  ${meta.start} &rarr; ${meta.end}${authBadge}`;
   document.getElementById('footer').textContent =
     `Google Analytics 4  ·  ${propLine}  ·  ${meta.start} → ${meta.end}${isAuth ? '  ·  Authenticated users only' : ''}`;
   document.getElementById('main-content').innerHTML =
-    channelSection(d.channels, isAuth) + searchSection(d.search, isAuth) + funnelSection(d.funnel);
+    channelSection(d.channels, isAuth) + searchSection(d.search, isAuth) + funnelSection(d.funnel, isAuth);
 }
 
 function channelSection(ch, isAuth) {
@@ -442,27 +472,27 @@ function channelSection(ch, isAuth) {
 
   return `
   <div class="section">
-    <div class="section-title">1 · Session Origin — External Discovery vs Direct <span style="font-weight:400;color:var(--muted);font-size:.9rem">(${label})</span>${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
+    <div class="section-title">1 &middot; Session Origin - External Discovery vs Direct <span style="font-weight:400;color:var(--muted);font-size:.9rem">(${label})</span>${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
       ${tip('How sessions arrived at the site, grouped by channel. Switching between Combined/SRM/SK/CQ changes the property scope; the date range above changes the time window.')}
     </div>
-    ${methodology('method-s1', 'Pulls from GA4 session channel grouping — how each session started and what brought the user to the site. Covers all traffic sources including organic search, direct, referral, and AI assistants.')}
+    ${methodology('method-s1', 'Pulls from GA4 session channel grouping - how each session started and what brought the user to the site. Covers all traffic sources including organic search, direct, referral, and AI assistants.')}
     <div class="cards">
       <div class="card total">
         <div class="label">Total Sessions ${tip('All sessions in the selected property and date range, excluding Unassigned channel sessions' + (isAuth ? ', filtered to authenticated users only.' : '. Unassigned sessions are shown as a footnote below.'))}</div>
         <div class="value">${num(t)}</div>
       </div>
       <div class="card ext">
-        <div class="label">External Discovery ${tip(`${extP}% of sessions (${num(ch.external)}) came from outside Sage — users arriving via Google, academic databases, referral links, or AI assistants like ChatGPT. They didn't type the URL directly.`)}</div>
+        <div class="label">External Discovery ${tip(`${extP}% of sessions (${num(ch.external)}) came from outside Sage - users arriving via Google, academic databases, referral links, or AI assistants like ChatGPT. They did not type the URL directly.`)}</div>
         <div class="value">${extP}%</div>
         <div class="sub">${num(ch.external)} sessions</div>
       </div>
       <div class="card dir">
-        <div class="label">Direct ${tip(`${dirP}% (${num(ch.direct)} sessions). Sessions GA4 couldn't attribute to a known external source. This includes typed URLs and bookmarks, but also traffic from messaging apps, PDF links, email campaigns with missing UTM tags, and other sources where referrer data is unavailable or stripped. Treat this as 'unknown origin' rather than purely direct navigation.`)}</div>
+        <div class="label">Direct ${tip('Sessions GA4 could not attribute to a known external source. Includes typed URLs and bookmarks, but also traffic from messaging apps, PDF links, and email campaigns with missing or broken UTM tags - parameters added to URLs that tell GA4 where traffic came from. Treat this as unknown origin rather than purely direct navigation.', '')}</div>
         <div class="value">${dirP}%</div>
         <div class="sub">${num(ch.direct)} sessions</div>
       </div>
       <div class="card oth">
-        <div class="label">Other / Unassigned ${tip(`${othP}% (${num(ch.other)} sessions) couldn't be categorised by GA4 — often institutional access methods like Athens or Shibboleth that don't pass referral information.`, 'right')}</div>
+        <div class="label">Other / Unassigned ${tip('Sessions where GA4 has attribution data but could not map it to a defined channel. Usually caused by malformed or missing UTM parameters. A high figure may indicate a tracking issue worth investigating.', 'right')}</div>
         <div class="value">${othP}%</div>
         <div class="sub">${num(ch.other)} sessions</div>
       </div>
@@ -484,124 +514,64 @@ function channelSection(ch, isAuth) {
       <thead><tr><th>Channel Group</th><th class="num">Sessions</th><th class="num">% of Total</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    ${ch.unassigned ? `<p class="unassigned-note">ⓘ &nbsp;${num(ch.unassigned)} Unassigned sessions excluded from totals — sessions GA4 could not attribute to a known channel (e.g. missing referrer data).</p>` : ''}
-  </div>`;
-}
-
-function funnelSection(f) {
-  const e  = f.entry;
-  const cl = f.content_landers;
-  const sl = f.search_landers;
-
-  function fbox(cls, name, pct, n, tooltip, edge) {
-    return `<div class="f-box ${cls}">
-      <div class="f-pct">${pct}%</div>
-      <div class="f-name">${name}${tooltip ? ' ' + tip(tooltip, edge) : ''}</div>
-      <div class="f-num">${num(n)} sessions</div>
-    </div>`;
-  }
-
-  function outcomeBar(cls, label, pct, n, tooltip) {
-    return `<div class="f-outcome-bar">
-      <div class="f-outcome-label">
-        <span class="f-o-name">${label}${tooltip ? ' ' + tip(tooltip) : ''}</span>
-        <span class="f-o-stat">${pct}% &nbsp;·&nbsp; ${num(n)} sessions</span>
-      </div>
-      <div class="f-track"><div class="f-fill ${cls}" style="width:${pct}%"></div></div>
-    </div>`;
-  }
-
-  return `
-  <div class="section" style="margin-top:32px">
-    <div class="section-title">3 · Authenticated User Journey Funnel <span class="auth-badge">Authenticated only</span>
-      ${tip('Traces what authenticated users did after landing on the site. Always filtered to authenticated sessions regardless of the toggle above.')}
-    </div>
-    ${methodology('method-s3', 'Uses GA4 landing page data to identify where each authenticated session started. Next actions are estimated from session-level engagement signals — GA4 does not expose within-session page sequences directly via the API.')}
-    <div class="funnel-wrap">
-
-      <div style="text-align:center;margin-bottom:6px;font-size:.8rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">
-        Entry Point — ${num(e.total)} authenticated sessions
-      </div>
-      <div class="funnel-row">
-        ${fbox('content', 'Content Page',  e.content.pct, e.content.n,
-          `${e.content.pct}% (${num(e.content.n)} sessions) landed directly on a content page — a book chapter, video, encyclopaedia entry, or similar resource. URLs matching: /book/, /video/, /chapter/, /ency/, and others.`)}
-        ${fbox('search',  'Search Page',   e.search.pct,  e.search.n,
-          `${e.search.pct}% (${num(e.search.n)} sessions) landed on a search results page — they arrived mid-query, typically clicking through from an external search engine or database.`)}
-        ${fbox('portal',  'Portal / Home', e.portal.pct,  e.portal.n,
-          `${e.portal.pct}% (${num(e.portal.n)} sessions) landed on the homepage or browse interface — a general discovery starting point with no specific content or query in the URL.`)}
-        ${fbox('error',   'Error Page',    e.error.pct,   e.error.n,
-          `${e.error.pct}% (${num(e.error.n)} sessions) landed on an error page (e.g. /error or /error/handleStatusCode). These users hit a broken link or invalid URL before the session began.`)}
-        ${fbox('other',   'Other',         e.other.pct,   e.other.n,
-          `${e.other.pct}% (${num(e.other.n)} sessions) landed on a page that doesn't match any known content, search, portal, or error pattern. May include profile pages, admin pages, or URL structures not yet mapped.`, 'right')}
-      </div>
-
-      <div class="funnel-connector"><div class="funnel-arrow">↓</div></div>
-
-      <div class="f-stage-wrap">
-
-        <div class="f-stage">
-          <div class="f-stage-header">Content page landers — what next?</div>
-          <div class="f-stage-total">${num(cl.total)} sessions landed on a content page</div>
-          ${outcomeBar('exited',   'Exited (single page)',       cl.exited.pct,        cl.exited.n,
-            `${cl.exited.pct}% (${num(cl.exited.n)} sessions) left after viewing only the landing page — an unengaged session under 10 seconds with no further interaction or conversion event.`)}
-          ${outcomeBar('searched', 'Performed a search',        cl.searched.pct,      cl.searched.n,
-            `${cl.searched.pct}% (${num(cl.searched.n)} sessions) fired a view_search_results or search_within_content event after landing on content, indicating they switched to active searching.`)}
-          ${outcomeBar('engaged',  'Viewed a second content page¹', cl.other_engaged.pct, cl.other_engaged.n,
-            `${cl.other_engaged.pct}% (${num(cl.other_engaged.n)} sessions) stayed and navigated further without searching. Estimated as engaged sessions minus searchers. ¹The GA4 API doesn't expose within-session page sequences, so a small number may have navigated to non-content pages.`)}
-        </div>
-
-        <div class="f-stage">
-          <div class="f-stage-header">Search page landers — what next?</div>
-          <div class="f-stage-total">${num(sl.total)} sessions landed on a search page</div>
-          ${outcomeBar('exited',  'Exited immediately',          sl.exited.pct,          sl.exited.n,
-            `${sl.exited.pct}% (${num(sl.exited.n)} sessions) left without clicking a result — a single-page, unengaged session lasting under 10 seconds.`)}
-          ${outcomeBar('clicked', 'Clicked through to content',  sl.clicked_content.pct, sl.clicked_content.n,
-            `${sl.clicked_content.pct}% (${num(sl.clicked_content.n)} sessions) clicked through to a content page. Measured using the search_content_clickthrough event fired when a user selects a search result.`)}
-          ${outcomeBar('engaged', 'Other engagement',            sl.other_engaged.pct,   sl.other_engaged.n,
-            `${sl.other_engaged.pct}% (${num(sl.other_engaged.n)} sessions) stayed engaged but didn't trigger a content clickthrough — may have refined their search query, browsed filters, or navigated elsewhere.`)}
-        </div>
-
-      </div>
-
-      <ul class="funnel-note">
-        <li><strong>Content pages:</strong> /video/, /foundations/, /hnbk/, /ency/, /books/, /cases/, /skills/, /book/, /mono/, /report/, /cqresearcher, /chapter/, /reference/, /books-and-reference, /methods-map, /dict/, /chpt/, /referenceandbooks, /business, /videocollections, /project-planner, /which-stats-test</li>
-        <li><strong>Search pages:</strong> /search/results (any case) or /search?query</li>
-        <li><strong>Portal/Home:</strong> root domain or bare /search page</li>
-        <li><strong>Error pages:</strong> /error, /error/handleStatusCode</li>
-        <li><strong>"Exited"</strong> = unengaged sessions (&lt;10s, single page, no conversion event)</li>
-        <li><strong>"Clicked through"</strong> = <code>search_content_clickthrough</code> event fired</li>
-        <li>¹ Estimated as engaged content-lander sessions that did not fire a search event. The GA4 Data API does not expose within-session page sequences, so this figure may include a small number of sessions that navigated to non-content pages.</li>
-      </ul>
-    </div>
+    ${ch.unassigned ? `<p class="unassigned-note">&#x2139;&nbsp;&nbsp;${num(ch.unassigned)} Unassigned sessions excluded from totals - sessions GA4 could not attribute to a known channel (e.g. missing referrer data).</p>` : ''}
   </div>`;
 }
 
 function searchSection(s, isAuth) {
-  const t      = s.total || 0;
-  const srchP  = pct(s.searched,     t);
-  const noP    = pct(s.not_searched, t);
+  const t     = s.total || 0;
+  const srchP = pct(s.searched,         t);
+  const cnsP  = pct(s.content_no_search, t);
+  const neitP = pct(s.neither,           t);
+  const rcP   = pct(s.searched_reached_content, s.searched);
+  const rncP  = pct(s.searched_no_content,      s.searched);
+
+  const baseLabel = isAuth
+    ? `Base: ${num(t)} authenticated sessions`
+    : `Base: ${num(t)} sessions - all users`;
+
+  function subBar(fillCls, label, p, n, tipText) {
+    return `<div class="search-sub-bar">
+      <div class="search-sub-label">
+        <span class="s-name">${label}${tipText ? ' ' + tip(tipText) : ''}</span>
+        <span class="s-stat">${p}% &middot; ${num(n)} sessions</span>
+      </div>
+      <div class="s-track"><div class="s-fill ${fillCls}" style="width:${p}%"></div></div>
+    </div>`;
+  }
 
   return `
   <div class="section" style="margin-top:32px">
-    <div class="section-title">2 · Session Behaviour — Search vs Content-Only${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
-      ${tip('Whether sessions included a search interaction. Measured using the view_search_results and search_within_content GA4 events.')}
+    <div class="section-title">2 &middot; Session Behaviour${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
+      ${tip('How sessions are divided by search use and content engagement. Each session falls into exactly one of the three top-level categories.')}
     </div>
-    ${methodology('method-s2', 'Search sessions pull from GA4 event data — specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions, so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page.')}
+    <p class="section-base">${baseLabel}</p>
+    ${methodology('method-s2', 'Pulls from GA4 event data - specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page.')}
     <div class="cards">
-      <div class="card total">
-        <div class="label">Total Sessions ${tip('Sessions counted by search behaviour — matches GA4\'s standard session count (excludes Unassigned)' + (isAuth ? ', filtered to authenticated users only.' : '.'))}</div>
-        <div class="value">${num(t)}</div>
-      </div>
       <div class="card srch">
-        <div class="label">Used Search ${tip(`${srchP}% of sessions (${num(s.searched)}) included at least one search — the user typed a query and viewed results at some point during their visit. Triggered by the view_search_results or search_within_content event.`)}</div>
+        <div class="label">Used Search ${tip(`${srchP}% of sessions (${num(s.searched)}) included at least one search - the user typed a query and viewed results at some point during their visit. Triggered by the view_search_results or search_within_content event.`)}</div>
         <div class="value">${srchP}%</div>
         <div class="sub">${num(s.searched)} sessions</div>
       </div>
       <div class="card nosrch">
-        <div class="label">Content-Only ${tip(`${noP}% of sessions (${num(s.not_searched)}) never used search — they arrived, viewed content, and navigated without touching the search bar.`)}</div>
-        <div class="value">${noP}%</div>
-        <div class="sub">${num(s.not_searched)} sessions</div>
+        <div class="label">Content, No Search ${tip(`${cnsP}% of sessions (${num(s.content_no_search)}) viewed at least one content page but never used search. Includes any session where a content URL was visited and no search event fired.`)}</div>
+        <div class="value">${cnsP}%</div>
+        <div class="sub">${num(s.content_no_search)} sessions</div>
       </div>
+      <div class="card neither">
+        <div class="label">Neither ${tip(`${neitP}% of sessions (${num(s.neither)}) used neither search nor viewed a content page - for example sessions that only visited the homepage, portal pages, or exited immediately.`, 'right')}</div>
+        <div class="value">${neitP}%</div>
+        <div class="sub">${num(s.neither)} sessions</div>
+      </div>
+    </div>
+    <div class="search-sub">
+      <div class="search-sub-header">&#x21b3; Of those who searched (${num(s.searched)} sessions):</div>
+      ${subBar('reached',     'Reached a content page',         rcP,  s.searched_reached_content,
+        `${rcP}% of searchers (${num(s.searched_reached_content)} sessions) visited at least one content page during the same session. Note: GA4 does not expose page sequences, so the content view may have occurred before or after the search.`)}
+      ${subBar('not-reached', 'Did not reach a content page',   rncP, s.searched_no_content,
+        `${rncP}% of searchers (${num(s.searched_no_content)} sessions) searched but did not visit a recognised content page. They may have exited from search results or navigated to non-content areas.`)}
+    </div>
+    <div class="cards">
       <div class="card total">
         <div class="label">Total Search Events ${tip('Count of individual view_search_results events fired. One session can contribute multiple search events if the user ran several searches during their visit.')}</div>
         <div class="value">${num(s.search_events || 0)}</div>
@@ -613,20 +583,103 @@ function searchSection(s, isAuth) {
         <div class="sub">page views</div>
       </div>
     </div>
-    <div class="bar-wrap">
-      <div class="bar-header"><span>Search interaction breakdown</span><span>${num(t)} total sessions</span></div>
-      <div class="bar">
-        <div class="seg srch"   style="width:${srchP}%">${srchP > 5 ? srchP + '%' : ''}</div>
-        <div class="seg nosrch" style="width:${noP}%">${noP > 5 ? noP + '%' : ''}</div>
-      </div>
-      <div class="legend">
-        <div class="legend-item"><div class="dot" style="background:var(--srch)"></div> Used site search (${srchP}%)</div>
-        <div class="legend-item"><div class="dot" style="background:var(--nosrch)"></div> Content-only — no search (${noP}%)</div>
-      </div>
-    </div>
-    <p style="font-size:.8rem;color:var(--muted);margin-top:12px">
-      ⓘ &nbsp;"Used Search" = sessions where <code>view_search_results</code> or <code>search_within_content</code> fired at least once.
+    <p style="font-size:.8rem;color:var(--muted);margin-top:4px">
+      &#x2139;&nbsp;&nbsp;"Used Search" = sessions where <code>view_search_results</code> or <code>search_within_content</code> fired at least once.
     </p>
+  </div>`;
+}
+
+function funnelSection(f, isAuth) {
+  const e  = f.entry;
+  const cl = f.content_landers;
+  const sl = f.search_landers;
+  const baseLabel = isAuth
+    ? `Base: ${num(e.total)} authenticated sessions`
+    : `Base: ${num(e.total)} sessions - all users`;
+
+  function fbox(cls, name, p, n, tooltip, edge) {
+    return `<div class="f-box ${cls}">
+      <div class="f-pct">${p}%</div>
+      <div class="f-name">${name}${tooltip ? ' ' + tip(tooltip, edge) : ''}</div>
+      <div class="f-num">${num(n)} sessions</div>
+    </div>`;
+  }
+
+  function outcomeBar(cls, label, p, n, tooltip) {
+    return `<div class="f-outcome-bar">
+      <div class="f-outcome-label">
+        <span class="f-o-name">${label}${tooltip ? ' ' + tip(tooltip) : ''}</span>
+        <span class="f-o-stat">${p}% &nbsp;&middot;&nbsp; ${num(n)} sessions</span>
+      </div>
+      <div class="f-track"><div class="f-fill ${cls}" style="width:${p}%"></div></div>
+    </div>`;
+  }
+
+  return `
+  <div class="section" style="margin-top:32px">
+    <div class="section-title">3 &middot; User Journey Funnel${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
+      ${tip('Traces what users did after landing on the site, broken down by entry point type. Follows the authenticated toggle above.')}
+    </div>
+    <p class="section-base">${baseLabel}</p>
+    ${methodology('method-s3', 'Uses GA4 landing page data to identify where each session started. Next actions are estimated from session-level engagement signals. GA4 does not expose within-session page sequences directly via the API, so next-step figures are approximations.')}
+    <div class="funnel-wrap">
+
+      <div style="text-align:center;margin-bottom:6px;font-size:.8rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">
+        Entry Point - ${num(e.total)} ${isAuth ? 'authenticated ' : ''}sessions
+      </div>
+      <div class="funnel-row">
+        ${fbox('content', 'Content Page',  e.content.pct, e.content.n,
+          `${e.content.pct}% (${num(e.content.n)} sessions) landed directly on a content page - a book chapter, video, encyclopaedia entry, or similar resource. URLs matching: /book/, /video/, /chapter/, /ency/, and others.`)}
+        ${fbox('search',  'Search Page',   e.search.pct,  e.search.n,
+          `${e.search.pct}% (${num(e.search.n)} sessions) landed on a search results page - they arrived mid-query, typically clicking through from an external search engine or database.`)}
+        ${fbox('portal',  'Portal / Home', e.portal.pct,  e.portal.n,
+          `${e.portal.pct}% (${num(e.portal.n)} sessions) landed on the homepage or browse interface - a general discovery starting point with no specific content or query in the URL.`)}
+        ${fbox('error',   'Error Page',    e.error.pct,   e.error.n,
+          `${e.error.pct}% (${num(e.error.n)} sessions) landed on an error page (e.g. /error or /error/handleStatusCode). These users hit a broken link or invalid URL before the session began.`)}
+        ${fbox('other',   'Other',         e.other.pct,   e.other.n,
+          `${e.other.pct}% (${num(e.other.n)} sessions) landed on a page that does not match any known content, search, portal, or error pattern. May include profile pages, admin pages, or URL structures not yet mapped.`, 'right')}
+      </div>
+
+      <div class="funnel-connector"><div class="funnel-arrow">&darr;</div></div>
+
+      <div class="f-stage-wrap">
+
+        <div class="f-stage">
+          <div class="f-stage-header">Content page landers - what next?</div>
+          <div class="f-stage-total">${num(cl.total)} sessions landed on a content page</div>
+          ${outcomeBar('exited',   'Exited (single page)',         cl.exited.pct,        cl.exited.n,
+            `${cl.exited.pct}% (${num(cl.exited.n)} sessions) left after viewing only the landing page - an unengaged session under 10 seconds with no further interaction or conversion event.`)}
+          ${outcomeBar('searched', 'Performed a search',           cl.searched.pct,      cl.searched.n,
+            `${cl.searched.pct}% (${num(cl.searched.n)} sessions) fired a view_search_results or search_within_content event after landing on content, indicating they switched to active searching.`)}
+          ${outcomeBar('engaged',  'Viewed a second content page¹', cl.other_engaged.pct, cl.other_engaged.n,
+            `${cl.other_engaged.pct}% (${num(cl.other_engaged.n)} sessions) stayed and navigated further without searching. Estimated as engaged sessions minus searchers. ¹The GA4 API does not expose within-session page sequences, so a small number may have navigated to non-content pages.`)}
+        </div>
+
+        <div class="f-stage">
+          <div class="f-stage-header">Search page landers - what next?</div>
+          <div class="f-stage-total">${num(sl.total)} sessions landed on a search page</div>
+          ${outcomeBar('exited',  'Exited immediately',          sl.exited.pct,          sl.exited.n,
+            `${sl.exited.pct}% (${num(sl.exited.n)} sessions) left without clicking a result - a single-page, unengaged session lasting under 10 seconds.`)}
+          ${outcomeBar('clicked', 'Clicked through to content',  sl.clicked_content.pct, sl.clicked_content.n,
+            `${sl.clicked_content.pct}% (${num(sl.clicked_content.n)} sessions) clicked through to a content page. Measured using the search_content_clickthrough event fired when a user selects a search result.`)}
+          ${outcomeBar('engaged', 'Other engagement',            sl.other_engaged.pct,   sl.other_engaged.n,
+            `${sl.other_engaged.pct}% (${num(sl.other_engaged.n)} sessions) stayed engaged but did not trigger a content clickthrough - may have refined their search query, browsed filters, or navigated elsewhere.`)}
+        </div>
+
+      </div>
+
+      <p class="funnel-caveat">Next-step figures are estimated from aggregated session data. GA4's Data API does not expose within-session page sequences, so figures reflect sessions where both the landing page type and subsequent page type occurred - not necessarily in that order or as an immediate next step.</p>
+
+      <ul class="funnel-note">
+        <li><strong>Content pages:</strong> /video/, /foundations/, /hnbk/, /ency/, /books/, /cases/, /skills/, /book/, /mono/, /report/, /cqresearcher, /chapter/, /reference/, /books-and-reference, /methods-map, /dict/, /chpt/, /referenceandbooks, /business, /videocollections, /project-planner, /which-stats-test</li>
+        <li><strong>Search pages:</strong> /search/results (any case) or /search?query</li>
+        <li><strong>Portal/Home:</strong> root domain or bare /search page</li>
+        <li><strong>Error pages:</strong> /error, /error/handleStatusCode</li>
+        <li><strong>"Exited"</strong> = unengaged sessions (&lt;10s, single page, no conversion event)</li>
+        <li><strong>"Clicked through"</strong> = <code>search_content_clickthrough</code> event fired</li>
+        <li>¹ Estimated as engaged sessions minus searchers. The GA4 Data API does not expose within-session page sequences, so this figure may include sessions that navigated to non-content pages.</li>
+      </ul>
+    </div>
   </div>`;
 }
 </script>
