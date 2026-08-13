@@ -89,10 +89,14 @@ def _and(f1, f2):
     )
 
 
-def _contains_or(field, patterns):
+def _contains_or(field, patterns, case_sensitive=True):
     exprs = [FilterExpression(filter=Filter(
         field_name=field,
-        string_filter=Filter.StringFilter(value=p, match_type=Filter.StringFilter.MatchType.CONTAINS),
+        string_filter=Filter.StringFilter(
+            value=p,
+            match_type=Filter.StringFilter.MatchType.CONTAINS,
+            case_sensitive=case_sensitive,
+        ),
     )) for p in patterns]
     return exprs[0] if len(exprs) == 1 else FilterExpression(or_group=FilterExpressionList(expressions=exprs))
 
@@ -165,7 +169,8 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
     searched = int(srch_resp.rows[0].metric_values[0].value) if srch_resp.rows else 0
 
     # Q3: sessions with any content page view (regardless of search)
-    content_f   = _and(auth_f, _contains_or("pagePath", CONTENT_URL_PATTERNS))
+    # Case-insensitive so mixed-case paths (e.g. /CQResearcher/) match the patterns.
+    content_f   = _and(auth_f, _contains_or("pagePath", CONTENT_URL_PATTERNS, case_sensitive=False))
     cnt_resp    = client.run_report(RunReportRequest(
         **base,
         metrics=[Metric(name="sessions")],
@@ -174,7 +179,7 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
     sessions_with_content = int(cnt_resp.rows[0].metric_values[0].value) if cnt_resp.rows else 0
 
     # Q4: sessions with search event AND a content page view (for sub-breakdown)
-    sc_f     = _and(srch_f, _contains_or("pagePath", CONTENT_URL_PATTERNS))
+    sc_f     = _and(srch_f, _contains_or("pagePath", CONTENT_URL_PATTERNS, case_sensitive=False))
     sc_resp  = client.run_report(RunReportRequest(
         **base,
         metrics=[Metric(name="sessions")],
