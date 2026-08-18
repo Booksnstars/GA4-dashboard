@@ -381,19 +381,6 @@ def _pct(n, d):
     return round(n / d * 100, 1) if d else 0
 
 
-def _paginate(client, request_kwargs, page_size=50000):
-    """Fetch all rows for a dimensional query, paging through GA4 results."""
-    rows = []
-    offset = 0
-    while True:
-        resp = client.run_report(RunReportRequest(**request_kwargs, limit=page_size, offset=offset))
-        rows.extend(resp.rows)
-        offset += len(resp.rows)
-        if not resp.rows or offset >= resp.row_count:
-            break
-    return rows
-
-
 def fetch_funnel_data(client, property_id, start_date, end_date, auth_only=False):
     af   = _auth_filter() if auth_only else None
     base = dict(
@@ -410,13 +397,16 @@ def fetch_funnel_data(client, property_id, start_date, end_date, auth_only=False
     ))
     base_total = int(base_resp.rows[0].metric_values[0].value) if base_resp.rows else 0
 
-    # Q1: sessions by landing page -> entry point breakdown (all pages, no row cap)
-    lp_rows = _paginate(client, dict(
+    # Q1: sessions by landing page -> entry point breakdown.
+    # 250,000 is the GA4 Data API per-request row maximum, covering all landing pages.
+    lp_resp = client.run_report(RunReportRequest(
         **base,
         dimensions=[Dimension(name="landingPage")],
         metrics=[Metric(name="sessions"), Metric(name="engagedSessions")],
         dimension_filter=af,
+        limit=250000,
     ))
+    lp_rows = lp_resp.rows
     entry_n   = {'content': 0, 'search': 0, 'portal': 0, 'error': 0, 'other': 0}
     entry_eng = {'content': 0, 'search': 0, 'portal': 0, 'error': 0, 'other': 0}
     for row in lp_rows:
