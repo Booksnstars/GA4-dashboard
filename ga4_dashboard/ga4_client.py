@@ -397,28 +397,31 @@ def fetch_funnel_data(client, property_id, start_date, end_date, auth_only=False
     ))
     base_total = int(base_resp.rows[0].metric_values[0].value) if base_resp.rows else 0
 
-    # Q1: sessions by landing page -> entry point breakdown.
-    # 250,000 is the GA4 Data API per-request row maximum, covering all landing pages.
+    # Q1: sessions by landing page -> entry point breakdown (top 5,000 URLs per property).
+    # Sessions beyond the 5,000th row are added to 'other' via the uncategorised remainder
+    # so the five buckets always sum to base_total.
     lp_resp = client.run_report(RunReportRequest(
         **base,
         dimensions=[Dimension(name="landingPage")],
         metrics=[Metric(name="sessions"), Metric(name="engagedSessions")],
         dimension_filter=af,
-        limit=250000,
+        limit=5000,
     ))
-    lp_rows = lp_resp.rows
     entry_n   = {'content': 0, 'search': 0, 'portal': 0, 'error': 0, 'other': 0}
     entry_eng = {'content': 0, 'search': 0, 'portal': 0, 'error': 0, 'other': 0}
-    for row in lp_rows:
+    for row in lp_resp.rows:
         cat = _categorise_landing(row.dimension_values[0].value)
         entry_n[cat]   += int(row.metric_values[0].value)
         entry_eng[cat] += int(row.metric_values[1].value)
     dim_total = sum(entry_n.values())
-    # Use base_total (direct query) as denominator so entry % match Section 2's population.
+    # Sessions not covered by the top-5,000 rows are added to 'other' so the five
+    # buckets always total base_total (matching Section 2's base).
+    uncategorised = max(0, base_total - dim_total)
+    entry_n['other'] += uncategorised
     total = base_total or dim_total
 
     print(f"  [S3 prop={property_id}] base_total={base_total:,}  "
-          f"dim_total={dim_total:,}  lp_rows={len(lp_rows):,}  "
+          f"dim_total={dim_total:,}  lp_rows={len(lp_resp.rows):,}  uncategorised={uncategorised:,}  "
           f"search_landers={entry_n['search']:,}  ({_pct(entry_n['search'], total):.1f}%)")
 
     # Q2: content landers who searched (case-insensitive so mixed-case CQ URLs match)

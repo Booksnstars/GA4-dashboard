@@ -644,7 +644,7 @@ function funnelSection(f, isAuth) {
         ${fbox('error',   'Error Page',    e.error.pct,   e.error.n,
           `${e.error.pct}% (${num(e.error.n)} sessions) landed on an error page (e.g. /error or /error/handleStatusCode). These users hit a broken link or invalid URL before the session began.`)}
         ${fbox('other',   'Other',         e.other.pct,   e.other.n,
-          `${e.other.pct}% (${num(e.other.n)} sessions) landed on a page that does not match any known content, search, portal, or error pattern. May include profile pages, admin pages, or URL structures not yet mapped.`, 'right')}
+          `${e.other.pct}% (${num(e.other.n)} sessions) landed on a page that does not match any known content, search, portal, or error pattern (profile pages, admin pages, unrecognised URL structures), plus any sessions beyond the top 5,000 landing page URLs which could not be individually categorised. This bucket ensures entry points always total 100%.`, 'right')}
       </div>
 
       <div class="funnel-connector"><div class="funnel-arrow">&darr;</div></div>
