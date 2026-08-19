@@ -234,56 +234,6 @@ tr:hover td { background: #fafafa; }
 .s-fill.reached  { background: var(--srch);   }
 .s-fill.not-reached { background: var(--neither); }
 
-/* -- Funnel -- */
-.funnel-wrap { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 28px 32px; }
-.funnel-note { font-size: .78rem; color: var(--muted); margin-top: 16px; padding-left: 18px; }
-.funnel-caveat { font-size: .78rem; color: var(--muted); margin-top: 14px; font-style: italic; }
-.unassigned-note { font-size: .75rem; color: var(--muted); margin-top: 8px; }
-.funnel-note li { margin-bottom: 3px; }
-.funnel-row  { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.funnel-connector { display: flex; flex-direction: column; align-items: center; margin: 4px 0; }
-.funnel-arrow { font-size: 1.2rem; color: var(--border); line-height: 1; }
-.funnel-label-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 4px; }
-.f-label { font-size: .72rem; text-align: center; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-
-.f-box {
-  border-radius: 8px; padding: 14px 18px; text-align: center;
-  border: 1px solid var(--border); min-width: 140px; max-width: 190px; flex: 1;
-}
-.f-box .f-pct  { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
-.f-box .f-name { font-size: .75rem; color: var(--muted); margin: 4px 0 2px; text-transform: uppercase; letter-spacing: .03em; }
-.f-box .f-num  { font-size: .78rem; color: var(--muted); }
-
-.f-box.content  { border-top: 3px solid var(--ext);    } .f-box.content  .f-pct { color: var(--ext);    }
-.f-box.search   { border-top: 3px solid var(--srch);   } .f-box.search   .f-pct { color: var(--srch);   }
-.f-box.portal   { border-top: 3px solid var(--sage);   } .f-box.portal   .f-pct { color: var(--sage);   }
-.f-box.error    { border-top: 3px solid #c0392b;        } .f-box.error    .f-pct { color: #c0392b;        }
-.f-box.other    { border-top: 3px solid var(--oth);    } .f-box.other    .f-pct { color: var(--oth);    }
-.f-box.exited   { border-top: 3px solid #e53935;       } .f-box.exited   .f-pct { color: #e53935;       }
-.f-box.searched { border-top: 3px solid var(--srch);   } .f-box.searched .f-pct { color: var(--srch);   }
-.f-box.clicked  { border-top: 3px solid var(--nosrch); } .f-box.clicked  .f-pct { color: var(--nosrch); }
-.f-box.engaged  { border-top: 3px solid var(--dir);    } .f-box.engaged  .f-pct { color: var(--dir);    }
-
-.f-stage-wrap { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
-.f-stage { flex: 1; min-width: 280px; max-width: 440px; }
-.f-stage-header {
-  font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
-  color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 14px;
-}
-.f-stage-total { font-size: .85rem; margin-bottom: 14px; }
-.f-stage-total strong { color: var(--text); }
-
-.f-outcome-bar { margin-bottom: 12px; }
-.f-outcome-label { display: flex; justify-content: space-between; font-size: .82rem; margin-bottom: 4px; }
-.f-outcome-label .f-o-name { font-weight: 500; }
-.f-outcome-label .f-o-stat { color: var(--muted); }
-.f-track { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
-.f-fill  { height: 100%; border-radius: 5px; transition: width .5s ease; }
-.f-fill.exited   { background: #e53935; }
-.f-fill.searched { background: var(--srch); }
-.f-fill.clicked  { background: var(--nosrch); }
-.f-fill.engaged  { background: var(--dir); }
-
 footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--muted); }
 </style>
 </head>
@@ -453,7 +403,7 @@ function renderAll(data) {
   document.getElementById('footer').textContent =
     `Google Analytics 4  ·  ${propLine}  ·  ${meta.start} → ${meta.end}${isAuth ? '  ·  Authenticated users only' : ''}`;
   document.getElementById('main-content').innerHTML =
-    channelSection(d.channels, isAuth, d.search.total) + searchSection(d.search, isAuth) + funnelSection(d.funnel, isAuth);
+    channelSection(d.channels, isAuth, d.search.total) + searchSection(d.search, isAuth);
 }
 
 function channelSection(ch, isAuth, baseTotal) {
@@ -595,101 +545,6 @@ function searchSection(s, isAuth) {
   </div>`;
 }
 
-function funnelSection(f, isAuth) {
-  const e  = f.entry;
-  const cl = f.content_landers;
-  const sl = f.search_landers;
-  const baseN = f.base_total || e.total;
-  const baseLabel = isAuth
-    ? `Base: ${num(baseN)} authenticated sessions`
-    : `Base: ${num(baseN)} sessions - all users`;
-
-  function fbox(cls, name, p, n, tooltip, edge) {
-    return `<div class="f-box ${cls}">
-      <div class="f-pct">${p}%</div>
-      <div class="f-name">${name}${tooltip ? ' ' + tip(tooltip, edge) : ''}</div>
-      <div class="f-num">${num(n)} sessions</div>
-    </div>`;
-  }
-
-  function outcomeBar(cls, label, p, n, tooltip) {
-    return `<div class="f-outcome-bar">
-      <div class="f-outcome-label">
-        <span class="f-o-name">${label}${tooltip ? ' ' + tip(tooltip) : ''}</span>
-        <span class="f-o-stat">${p}% &nbsp;&middot;&nbsp; ${num(n)} sessions</span>
-      </div>
-      <div class="f-track"><div class="f-fill ${cls}" style="width:${p}%"></div></div>
-    </div>`;
-  }
-
-  return `
-  <div class="section" style="margin-top:32px">
-    <div class="section-title">3 &middot; User Journey Funnel${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
-      ${tip('Traces what users did after landing on the site, broken down by entry point type. Follows the authenticated toggle above.')}
-    </div>
-    <p class="section-base">${baseLabel}</p>
-    ${methodology('method-s3', 'Uses GA4 landing page data to identify where each session started. Next actions are estimated from session-level engagement signals. GA4 does not expose within-session page sequences directly via the API, so next-step figures are approximations.')}
-    <div class="funnel-wrap">
-
-      <div style="text-align:center;margin-bottom:6px;font-size:.8rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em">
-        Entry Point - ${num(e.total)} ${isAuth ? 'authenticated ' : ''}sessions
-      </div>
-      <div class="funnel-row">
-        ${fbox('content', 'Content Page',  e.content.pct, e.content.n,
-          `${e.content.pct}% (${num(e.content.n)} sessions) landed directly on a content page - a book chapter, video, encyclopaedia entry, or similar resource. URLs matching: /book/, /video/, /chapter/, /ency/, and others.`)}
-        ${fbox('search',  'Search Page',   e.search.pct,  e.search.n,
-          `${e.search.pct}% (${num(e.search.n)} sessions) landed on a search results page - they arrived mid-query, typically clicking through from an external search engine or database.`)}
-        ${fbox('portal',  'Portal / Home', e.portal.pct,  e.portal.n,
-          `${e.portal.pct}% (${num(e.portal.n)} sessions) landed on the homepage or browse interface - a general discovery starting point with no specific content or query in the URL.`)}
-        ${fbox('error',   'Error Page',    e.error.pct,   e.error.n,
-          `${e.error.pct}% (${num(e.error.n)} sessions) landed on an error page (e.g. /error or /error/handleStatusCode). These users hit a broken link or invalid URL before the session began.`)}
-        ${fbox('other',   'Other',         e.other.pct,   e.other.n,
-          `${e.other.pct}% (${num(e.other.n)} sessions) landed on a page that does not match any known content, search, portal, or error pattern (profile pages, admin pages, unrecognised URL structures), plus any sessions beyond the top 5,000 landing page URLs which could not be individually categorised. This bucket ensures entry points always total 100%.`, 'right')}
-      </div>
-
-      <div class="funnel-connector"><div class="funnel-arrow">&darr;</div></div>
-
-      <div class="f-stage-wrap">
-
-        <div class="f-stage">
-          <div class="f-stage-header">Content page landers - what next?</div>
-          <div class="f-stage-total">${num(cl.total)} sessions landed on a content page</div>
-          ${outcomeBar('exited',   'Exited (single page)',         cl.exited.pct,        cl.exited.n,
-            `${cl.exited.pct}% (${num(cl.exited.n)} sessions) left after viewing only the landing page - an unengaged session under 10 seconds with no further interaction or conversion event.`)}
-          ${outcomeBar('searched', 'Performed a search',           cl.searched.pct,      cl.searched.n,
-            `${cl.searched.pct}% (${num(cl.searched.n)} sessions) fired a view_search_results or search_within_content event after landing on content, indicating they switched to active searching.`)}
-          ${outcomeBar('engaged',  'Viewed a second content page¹', cl.other_engaged.pct, cl.other_engaged.n,
-            `${cl.other_engaged.pct}% (${num(cl.other_engaged.n)} sessions) stayed and navigated further without searching. Estimated as engaged sessions minus searchers. ¹The GA4 API does not expose within-session page sequences, so a small number may have navigated to non-content pages.`)}
-        </div>
-
-        <div class="f-stage">
-          <div class="f-stage-header">Search page landers - what next?</div>
-          <div class="f-stage-total">${num(sl.total)} sessions landed on a search page</div>
-          ${outcomeBar('exited',  'Exited immediately',          sl.exited.pct,          sl.exited.n,
-            `${sl.exited.pct}% (${num(sl.exited.n)} sessions) left without clicking a result - a single-page, unengaged session lasting under 10 seconds.`)}
-          ${outcomeBar('clicked', 'Clicked through to content',  sl.clicked_content.pct, sl.clicked_content.n,
-            `${sl.clicked_content.pct}% (${num(sl.clicked_content.n)} sessions) clicked through to a content page. Measured using the search_content_clickthrough event fired when a user selects a search result.`)}
-          ${outcomeBar('engaged', 'Other engagement',            sl.other_engaged.pct,   sl.other_engaged.n,
-            `${sl.other_engaged.pct}% (${num(sl.other_engaged.n)} sessions) stayed engaged but did not trigger a content clickthrough - may have refined their search query, browsed filters, or navigated elsewhere.`)}
-        </div>
-
-      </div>
-
-      <p class="funnel-caveat">Next-step figures are estimated from aggregated session data. GA4's Data API does not expose within-session page sequences, so figures reflect sessions where both the landing page type and subsequent page type occurred - not necessarily in that order or as an immediate next step.</p>
-
-      <ul class="funnel-note">
-        <li><strong>Content pages:</strong> /video/, /foundations/, /hnbk/, /ency/, /books/, /cases/, /skills/, /book/, /mono/, /report/, /cqresearcher/report/, /pro-con/, /chapter/, /reference/, /books-and-reference, /methods-map, /dict/, /chpt/, /referenceandbooks, /business, /videocollections, /project-planner, /which-stats-test</li>
-        <li><strong>Portal/Home (CQ):</strong> /cqresearcher/ without a content sub-path (browse/listing page)</li>
-        <li><strong>Search pages:</strong> /search/results (any case) or /search?query</li>
-        <li><strong>Portal/Home:</strong> root domain or bare /search page</li>
-        <li><strong>Error pages:</strong> /error, /error/handleStatusCode</li>
-        <li><strong>"Exited"</strong> = unengaged sessions (&lt;10s, single page, no conversion event)</li>
-        <li><strong>"Clicked through"</strong> = <code>search_content_clickthrough</code> event fired</li>
-        <li>¹ Estimated as engaged sessions minus searchers. The GA4 Data API does not expose within-session page sequences, so this figure may include sessions that navigated to non-content pages.</li>
-      </ul>
-    </div>
-  </div>`;
-}
 </script>
 </body>
 </html>
