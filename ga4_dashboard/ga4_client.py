@@ -509,9 +509,6 @@ def fetch_all(client, start_date, end_date, auth_only=False):
     srm_s = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_s  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
 
-    srm_funnel = fetch_funnel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
-    sk_funnel  = fetch_funnel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
-
     combined_ch = merge_channel_rows(srm_ch, sk_ch)
 
     def _sum(key):
@@ -521,12 +518,10 @@ def fetch_all(client, start_date, end_date, auth_only=False):
         "srm": {
             "channels": categorise_channels(srm_ch),
             "search":   srm_s,
-            "funnel":   srm_funnel,
         },
         "sk": {
             "channels": categorise_channels(sk_ch),
             "search":   sk_s,
-            "funnel":   sk_funnel,
         },
         "combined": {
             "channels": categorise_channels(combined_ch),
@@ -540,6 +535,5 @@ def fetch_all(client, start_date, end_date, auth_only=False):
                 "search_events":             _sum("search_events"),
                 "content_views_from_search": _sum("content_views_from_search"),
             },
-            "funnel": merge_funnel(srm_funnel, sk_funnel),
         },
     }
