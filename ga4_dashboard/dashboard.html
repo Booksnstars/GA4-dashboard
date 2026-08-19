@@ -251,7 +251,6 @@ footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--mut
     <button class="toggle-btn active" data-view="combined">Combined</button>
     <button class="toggle-btn" data-view="srm">SRM</button>
     <button class="toggle-btn" data-view="sk">SK</button>
-    <button class="toggle-btn" data-view="cq">CQ</button>
   </div>
 
   <div class="date-group">
@@ -278,8 +277,8 @@ footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--mut
 <footer id="footer"></footer>
 
 <script>
-const LABELS = { combined: 'Combined (SRM + SK + CQ)', srm: 'SRM', sk: 'SK', cq: 'CQ' };
-const PROPS  = { srm: '257995281', sk: '258026800', cq: '401616614' };
+const LABELS = { combined: 'Combined (SRM + SK)', srm: 'SRM', sk: 'SK' };
+const PROPS  = { srm: '257995281', sk: '258026800' };
 
 let currentView = 'combined';
 let currentData = null;
@@ -394,7 +393,7 @@ function renderAll(data) {
   const meta     = data.meta;
   const isAuth   = meta.auth_only;
   const propLine = currentView === 'combined'
-    ? `SRM (${PROPS.srm}) + SK (${PROPS.sk}) + CQ (${PROPS.cq})`
+    ? `SRM (${PROPS.srm}) + SK (${PROPS.sk})`
     : `Property ${PROPS[currentView]}`;
   const authBadge = isAuth ? ' <span class="auth-badge">Authenticated only</span>' : '';
 

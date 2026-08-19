@@ -10,18 +10,16 @@ from google.analytics.data_v1beta.types import (
 PROPERTIES = {
     "srm": "257995281",
     "sk":  "258026800",
-    "cq":  "401616614",
 }
 
 LOGIN_STATUS_VALUE = "true"   # value of customEvent:login_status that means logged in
 
 CONTENT_URL_PATTERNS = [
     '/video/', '/foundations/', '/hnbk/', '/ency/', '/books/', '/cases/', '/skills/',
-    '/book/', '/mono/', '/report/', '/cqresearcher/report/', '/chapter/', '/reference/',
+    '/book/', '/mono/', '/report/', '/chapter/', '/reference/',
     '/books-and-reference', '/methods-map', '/dict/', '/chpt/',
     '/referenceandbooks', '/business', '/videocollections',
     '/project-planner', '/which-stats-test',
-    '/pro-con/',
 ]
 ERROR_URL_PATTERNS = ['/error']  # matches /Error, /error/handleStatusCode, etc.
 SEARCH_URL_PATTERNS = ['/search']  # kept for _contains_or filter; categorisation logic below
@@ -113,12 +111,6 @@ def _categorise_landing(url):
     # Error pages -- check before content so /error/* doesn't fall into other
     if any(p in path for p in ERROR_URL_PATTERNS):
         return 'error'
-
-    # CQ browse/listing page: /cqresearcher without a content sub-path is portal.
-    # Must come before the content check so /cqresearcher/ alone doesn't match
-    # /cqresearcher/report/ or /pro-con/ patterns.
-    if '/cqresearcher' in path and '/report/' not in path and '/pro-con/' not in path:
-        return 'portal'
 
     # Content pages take priority
     if any(p in u for p in CONTENT_URL_PATTERNS):
@@ -513,20 +505,17 @@ def merge_funnel(f1, f2):
 def fetch_all(client, start_date, end_date, auth_only=False):
     srm_ch = fetch_channel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_ch  = fetch_channel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
-    cq_ch  = fetch_channel_data(client, PROPERTIES["cq"],  start_date, end_date, auth_only)
 
     srm_s = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_s  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
-    cq_s  = fetch_search_data(client, PROPERTIES["cq"],  start_date, end_date, auth_only)
 
     srm_funnel = fetch_funnel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_funnel  = fetch_funnel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
-    cq_funnel  = fetch_funnel_data(client, PROPERTIES["cq"],  start_date, end_date, auth_only)
 
-    combined_ch = merge_channel_rows(merge_channel_rows(srm_ch, sk_ch), cq_ch)
+    combined_ch = merge_channel_rows(srm_ch, sk_ch)
 
     def _sum(key):
-        return srm_s[key] + sk_s[key] + cq_s[key]
+        return srm_s[key] + sk_s[key]
 
     return {
         "srm": {
@@ -538,11 +527,6 @@ def fetch_all(client, start_date, end_date, auth_only=False):
             "channels": categorise_channels(sk_ch),
             "search":   sk_s,
             "funnel":   sk_funnel,
-        },
-        "cq": {
-            "channels": categorise_channels(cq_ch),
-            "search":   cq_s,
-            "funnel":   cq_funnel,
         },
         "combined": {
             "channels": categorise_channels(combined_ch),
@@ -556,6 +540,6 @@ def fetch_all(client, start_date, end_date, auth_only=False):
                 "search_events":             _sum("search_events"),
                 "content_views_from_search": _sum("content_views_from_search"),
             },
-            "funnel": merge_funnel(merge_funnel(srm_funnel, sk_funnel), cq_funnel),
+            "funnel": merge_funnel(srm_funnel, sk_funnel),
         },
     }
