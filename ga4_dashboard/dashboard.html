@@ -296,6 +296,8 @@ let currentData = null;
       currentView = btn.dataset.view;
       document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      document.querySelector('.auth-toggle-wrap').style.display =
+        currentView === 'us' ? 'none' : '';
       if (currentData) renderAll(currentData);
     });
   });
@@ -392,7 +394,7 @@ function tip(text, edge) {
 function renderAll(data) {
   const d        = data[currentView];
   const meta     = data.meta;
-  const isAuth   = meta.auth_only;
+  const isAuth   = meta.auth_only && currentView !== 'us';
   const propLine = currentView === 'combined'
     ? `SRM (${PROPS.srm}) + SK (${PROPS.sk})`
     : `Property ${PROPS[currentView]}`;
@@ -504,8 +506,15 @@ function searchSection(s, isAuth) {
         <div class="sub">on average</div>
       </div>
     </div>
+    <div class="cards" style="margin-top:4px">
+      <div class="card nosrch">
+        <div class="label">Content Views from Search (estimate) ${tip('Page views where the immediately preceding page URL contained /search/results. Identifies page views likely driven by a Universal Search interaction. Estimated — GA4 does not guarantee referrer accuracy for all clients and browsers.')}</div>
+        <div class="value">${num(s.content_views_from_search || 0)}</div>
+        <div class="sub">page views</div>
+      </div>
+    </div>
     <p style="font-size:.8rem;color:var(--muted);margin-top:4px">
-      &#x2139;&nbsp;&nbsp;Content reach metrics will appear here once URL patterns are configured for Universal Search.
+      &#x2139;&nbsp;&nbsp;Content Views from Search is an estimate based on the <code>pageReferrer</code> dimension. Content reach by session will be available once URL patterns are configured for Universal Search.
     </p>
   </div>`;
   }

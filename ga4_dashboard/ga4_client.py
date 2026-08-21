@@ -226,24 +226,23 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
             dimension_filter=sc_f,
         ))
         searched_reached_content = int(sc_resp.rows[0].metric_values[0].value) if sc_resp.rows else 0
-
-        # Q6: content page views where referrer was a search results page
-        ref_f    = _and(auth_f, FilterExpression(filter=Filter(
-            field_name="pageReferrer",
-            string_filter=Filter.StringFilter(value="/search/results",
-                                              match_type=Filter.StringFilter.MatchType.CONTAINS,
-                                              case_sensitive=False),
-        )))
-        ref_resp = client.run_report(RunReportRequest(
-            **base,
-            metrics=[Metric(name="screenPageViews")],
-            dimension_filter=ref_f,
-        ))
-        content_views_from_search = int(ref_resp.rows[0].metric_values[0].value) if ref_resp.rows else 0
     else:
         sessions_with_content = 0
         searched_reached_content = 0
-        content_views_from_search = 0
+
+    # Q6: page views where the referrer was a search results page (runs for all properties)
+    ref_f    = _and(auth_f, FilterExpression(filter=Filter(
+        field_name="pageReferrer",
+        string_filter=Filter.StringFilter(value="/search/results",
+                                          match_type=Filter.StringFilter.MatchType.CONTAINS,
+                                          case_sensitive=False),
+    )))
+    ref_resp = client.run_report(RunReportRequest(
+        **base,
+        metrics=[Metric(name="screenPageViews")],
+        dimension_filter=ref_f,
+    ))
+    content_views_from_search = int(ref_resp.rows[0].metric_values[0].value) if ref_resp.rows else 0
 
     content_no_search = max(0, sessions_with_content - searched_reached_content)
     neither           = max(0, total - searched - content_no_search)
@@ -548,15 +547,16 @@ def merge_funnel(f1, f2):
 def fetch_all(client, start_date, end_date, auth_only=False):
     srm_ch = fetch_channel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_ch  = fetch_channel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
-    us_ch  = fetch_channel_data(client, PROPERTIES["us"],  start_date, end_date, auth_only,
-                               auth_filter=_login_status_filter(), base_filter=_us_search_filter())
+    # Universal Search: auth toggle does not apply — always fetch unfiltered by auth
+    us_ch  = fetch_channel_data(client, PROPERTIES["us"],  start_date, end_date, auth_only=False,
+                               base_filter=_us_search_filter())
 
     srm_s = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_s  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
-    # Universal Search uses its own event and has no content URL patterns yet
-    us_s  = fetch_search_data(client, PROPERTIES["us"],  start_date, end_date, auth_only,
+    # Universal Search: own event, no content URL patterns yet, auth does not apply
+    us_s  = fetch_search_data(client, PROPERTIES["us"],  start_date, end_date, auth_only=False,
                               srch_filter=_us_search_filter(), content_patterns=[],
-                              auth_filter=_login_status_filter(), base_filter=_us_search_filter())
+                              base_filter=_us_search_filter())
 
     combined_ch = merge_channel_rows(srm_ch, sk_ch)
 
