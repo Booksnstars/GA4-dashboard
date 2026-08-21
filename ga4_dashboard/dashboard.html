@@ -471,7 +471,46 @@ function channelSection(ch, isAuth, baseTotal) {
 }
 
 function searchSection(s, isAuth) {
-  const t     = s.total || 0;
+  const t = s.total || 0;
+
+  const baseLabel = isAuth
+    ? `Base: ${num(t)} authenticated sessions`
+    : `Base: ${num(t)} sessions - all users`;
+
+  if (currentView === 'us') {
+    const evts   = s.search_events || 0;
+    const perSes = t ? (evts / t).toFixed(2) : '0.00';
+    return `
+  <div class="section" style="margin-top:32px">
+    <div class="section-title">2 &middot; Search Volume &amp; Reach${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
+      ${tip('All sessions in this view fired the parasol_universal_search event at least once. Section 1 shows where those searchers came from. This section shows how intensively they searched and (once content URL patterns are configured) how many reached a content page.')}
+    </div>
+    <p class="section-base">${baseLabel} &mdash; all fired <code>parasol_universal_search</code></p>
+    ${methodology('method-s2', 'Scoped to sessions where parasol_universal_search fired at least once, with the same authenticated filter applied as Section 1. Total Search Events counts every individual event so one session can contribute multiple. Searches per Session measures usage intensity. Content reach will be available once content URL patterns are configured for Universal Search.')}
+    <div class="cards">
+      <div class="card srch">
+        <div class="label">Search Sessions ${tip('Total sessions where parasol_universal_search fired at least once. This is the base population for the entire Universal Search view.')}</div>
+        <div class="value">${num(t)}</div>
+        <div class="sub">sessions</div>
+      </div>
+      <div class="card total">
+        <div class="label">Total Search Events ${tip('Count of individual parasol_universal_search events. One session can fire multiple events if the user ran several searches.')}</div>
+        <div class="value">${num(evts)}</div>
+        <div class="sub">individual searches</div>
+      </div>
+      <div class="card ext">
+        <div class="label">Searches per Session ${tip('Average number of parasol_universal_search events per session. A higher figure indicates users are iterating on queries rather than finding what they need on the first attempt.', 'right')}</div>
+        <div class="value">${perSes}</div>
+        <div class="sub">on average</div>
+      </div>
+    </div>
+    <p style="font-size:.8rem;color:var(--muted);margin-top:4px">
+      &#x2139;&nbsp;&nbsp;Content reach metrics will appear here once URL patterns are configured for Universal Search.
+    </p>
+  </div>`;
+  }
+
+  // Standard SRM / SK / Combined layout
   const cns   = s.content_no_search || 0;
   const neit  = s.neither           || 0;
   const src   = s.searched_reached_content || 0;
@@ -481,10 +520,6 @@ function searchSection(s, isAuth) {
   const neitP = pct(neit, t);
   const rcP   = pct(src, s.searched || 1);
   const rncP  = pct(snc, s.searched || 1);
-
-  const baseLabel = isAuth
-    ? `Base: ${num(t)} authenticated sessions`
-    : `Base: ${num(t)} sessions - all users`;
 
   function subBar(fillCls, label, p, n, tipText) {
     return `<div class="search-sub-bar">
@@ -502,9 +537,7 @@ function searchSection(s, isAuth) {
       ${tip('How sessions are divided by search use and content engagement. Each session falls into exactly one of the three top-level categories.')}
     </div>
     <p class="section-base">${baseLabel}</p>
-    ${methodology('method-s2', currentView === 'us'
-      ? 'Pulls from GA4 event data - specifically whether a parasol_universal_search event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content URL patterns for Universal Search are not yet configured, so Content, No Search and the content sub-breakdown are not available.'
-      : 'Pulls from GA4 event data - specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page.')}
+    ${methodology('method-s2', 'Pulls from GA4 event data - specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page.')}
     <div class="cards">
       <div class="card srch">
         <div class="label">Used Search ${tip(`${srchP}% of sessions (${num(s.searched)}) included at least one search - the user typed a query and viewed results at some point during their visit. Triggered by the view_search_results or search_within_content event.`)}</div>
@@ -524,9 +557,9 @@ function searchSection(s, isAuth) {
     </div>
     <div class="search-sub">
       <div class="search-sub-header">&#x21b3; Of those who searched (${num(s.searched)} sessions):</div>
-      ${subBar('reached',     'Reached a content page',         rcP,  src,
+      ${subBar('reached',     'Reached a content page',       rcP,  src,
         `${rcP}% of searchers (${num(src)} sessions) visited at least one content page during the same session. Note: GA4 does not expose page sequences, so the content view may have occurred before or after the search.`)}
-      ${subBar('not-reached', 'Did not reach a content page',   rncP, snc,
+      ${subBar('not-reached', 'Did not reach a content page', rncP, snc,
         `${rncP}% of searchers (${num(snc)} sessions) searched but did not visit a recognised content page. They may have exited from search results or navigated to non-content areas.`)}
     </div>
     <div class="cards">
@@ -542,9 +575,7 @@ function searchSection(s, isAuth) {
       </div>
     </div>
     <p style="font-size:.8rem;color:var(--muted);margin-top:4px">
-      &#x2139;&nbsp;&nbsp;"Used Search" = sessions where ${currentView === 'us'
-        ? '<code>parasol_universal_search</code> fired at least once.'
-        : '<code>view_search_results</code> or <code>search_within_content</code> fired at least once.'}
+      &#x2139;&nbsp;&nbsp;"Used Search" = sessions where <code>view_search_results</code> or <code>search_within_content</code> fired at least once.
     </p>
   </div>`;
 }
