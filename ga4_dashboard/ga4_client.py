@@ -78,6 +78,17 @@ def _search_filter():
     )
 
 
+def _login_status_filter():
+    """Auth filter using only customEvent:login_status — for properties that lack authentication_subscription."""
+    return FilterExpression(filter=Filter(
+        field_name="customEvent:login_status",
+        string_filter=Filter.StringFilter(
+            value=LOGIN_STATUS_VALUE,
+            match_type=Filter.StringFilter.MatchType.EXACT,
+        ),
+    ))
+
+
 def _us_search_filter():
     return FilterExpression(filter=Filter(
         field_name="eventName",
@@ -138,13 +149,17 @@ def _categorise_landing(url):
     return 'other'
 
 
-def fetch_channel_data(client, property_id, start_date, end_date, auth_only=False):
+def fetch_channel_data(client, property_id, start_date, end_date, auth_only=False, auth_filter=None):
+    if auth_only:
+        af = auth_filter if auth_filter is not None else _auth_filter()
+    else:
+        af = None
     resp = client.run_report(RunReportRequest(
         property=f"properties/{property_id}",
         dimensions=[Dimension(name="sessionDefaultChannelGroup")],
         metrics=[Metric(name="sessions")],
         date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
-        dimension_filter=_auth_filter() if auth_only else None,
+        dimension_filter=af,
         limit=50,
     ))
     return [(r.dimension_values[0].value, int(r.metric_values[0].value))
@@ -152,9 +167,10 @@ def fetch_channel_data(client, property_id, start_date, end_date, auth_only=Fals
 
 
 def fetch_search_data(client, property_id, start_date, end_date, auth_only=False,
-                      srch_filter=None, content_patterns=None):
+                      srch_filter=None, content_patterns=None, auth_filter=None):
     # srch_filter: FilterExpression for search events; defaults to SRM/SK standard events.
     # content_patterns: list of URL substrings for content detection; pass [] to skip content queries.
+    # auth_filter: override the default two-dimension auth filter for properties that lack a dimension.
     if srch_filter is None:
         srch_filter = _search_filter()
     if content_patterns is None:
@@ -164,7 +180,10 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
         property=f"properties/{property_id}",
         date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
     )
-    auth_f = _auth_filter() if auth_only else None
+    if auth_only:
+        auth_f = auth_filter if auth_filter is not None else _auth_filter()
+    else:
+        auth_f = None
 
     # Q1: total sessions
     total_resp = client.run_report(RunReportRequest(
@@ -523,13 +542,15 @@ def merge_funnel(f1, f2):
 def fetch_all(client, start_date, end_date, auth_only=False):
     srm_ch = fetch_channel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_ch  = fetch_channel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
-    us_ch  = fetch_channel_data(client, PROPERTIES["us"],  start_date, end_date, auth_only)
+    us_ch  = fetch_channel_data(client, PROPERTIES["us"],  start_date, end_date, auth_only,
+                               auth_filter=_login_status_filter())
 
     srm_s = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_s  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
     # Universal Search uses its own event and has no content URL patterns yet
     us_s  = fetch_search_data(client, PROPERTIES["us"],  start_date, end_date, auth_only,
-                              srch_filter=_us_search_filter(), content_patterns=[])
+                              srch_filter=_us_search_filter(), content_patterns=[],
+                              auth_filter=_login_status_filter())
 
     combined_ch = merge_channel_rows(srm_ch, sk_ch)
 
