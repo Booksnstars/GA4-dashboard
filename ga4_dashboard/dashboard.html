@@ -251,6 +251,7 @@ footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--mut
     <button class="toggle-btn active" data-view="combined">Combined</button>
     <button class="toggle-btn" data-view="srm">SRM</button>
     <button class="toggle-btn" data-view="sk">SK</button>
+    <button class="toggle-btn" data-view="us">Universal Search</button>
   </div>
 
   <div class="date-group">
@@ -277,8 +278,8 @@ footer { text-align: center; padding: 24px; font-size: 0.78rem; color: var(--mut
 <footer id="footer"></footer>
 
 <script>
-const LABELS = { combined: 'Combined (SRM + SK)', srm: 'SRM', sk: 'SK' };
-const PROPS  = { srm: '257995281', sk: '258026800' };
+const LABELS = { combined: 'Combined (SRM + SK)', srm: 'SRM', sk: 'SK', us: 'Universal Search' };
+const PROPS  = { srm: '257995281', sk: '258026800', us: '264964195' };
 
 let currentView = 'combined';
 let currentData = null;
@@ -501,7 +502,9 @@ function searchSection(s, isAuth) {
       ${tip('How sessions are divided by search use and content engagement. Each session falls into exactly one of the three top-level categories.')}
     </div>
     <p class="section-base">${baseLabel}</p>
-    ${methodology('method-s2', 'Pulls from GA4 event data - specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page.')}
+    ${methodology('method-s2', currentView === 'us'
+      ? 'Pulls from GA4 event data - specifically whether a parasol_universal_search event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content URL patterns for Universal Search are not yet configured, so Content, No Search and the content sub-breakdown are not available.'
+      : 'Pulls from GA4 event data - specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page.')}
     <div class="cards">
       <div class="card srch">
         <div class="label">Used Search ${tip(`${srchP}% of sessions (${num(s.searched)}) included at least one search - the user typed a query and viewed results at some point during their visit. Triggered by the view_search_results or search_within_content event.`)}</div>
@@ -539,7 +542,9 @@ function searchSection(s, isAuth) {
       </div>
     </div>
     <p style="font-size:.8rem;color:var(--muted);margin-top:4px">
-      &#x2139;&nbsp;&nbsp;"Used Search" = sessions where <code>view_search_results</code> or <code>search_within_content</code> fired at least once.
+      &#x2139;&nbsp;&nbsp;"Used Search" = sessions where ${currentView === 'us'
+        ? '<code>parasol_universal_search</code> fired at least once.'
+        : '<code>view_search_results</code> or <code>search_within_content</code> fired at least once.'}
     </p>
   </div>`;
 }

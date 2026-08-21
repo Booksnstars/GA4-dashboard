@@ -10,6 +10,7 @@ from google.analytics.data_v1beta.types import (
 PROPERTIES = {
     "srm": "257995281",
     "sk":  "258026800",
+    "us":  "264964195",
 }
 
 LOGIN_STATUS_VALUE = "true"   # value of customEvent:login_status that means logged in
@@ -77,6 +78,16 @@ def _search_filter():
     )
 
 
+def _us_search_filter():
+    return FilterExpression(filter=Filter(
+        field_name="eventName",
+        string_filter=Filter.StringFilter(
+            value="parasol_universal_search",
+            match_type=Filter.StringFilter.MatchType.EXACT,
+        ),
+    ))
+
+
 def _and(f1, f2):
     if f1 is None: return f2
     if f2 is None: return f1
@@ -140,7 +151,15 @@ def fetch_channel_data(client, property_id, start_date, end_date, auth_only=Fals
             for r in resp.rows]
 
 
-def fetch_search_data(client, property_id, start_date, end_date, auth_only=False):
+def fetch_search_data(client, property_id, start_date, end_date, auth_only=False,
+                      srch_filter=None, content_patterns=None):
+    # srch_filter: FilterExpression for search events; defaults to SRM/SK standard events.
+    # content_patterns: list of URL substrings for content detection; pass [] to skip content queries.
+    if srch_filter is None:
+        srch_filter = _search_filter()
+    if content_patterns is None:
+        content_patterns = CONTENT_URL_PATTERNS
+
     base = dict(
         property=f"properties/{property_id}",
         date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
@@ -156,7 +175,7 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
     total = int(total_resp.rows[0].metric_values[0].value) if total_resp.rows else 0
 
     # Q2: sessions with a search event
-    srch_f    = _and(auth_f, _search_filter())
+    srch_f    = _and(auth_f, srch_filter)
     srch_resp = client.run_report(RunReportRequest(
         **base,
         metrics=[Metric(name="sessions")],
@@ -164,24 +183,42 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
     ))
     searched = int(srch_resp.rows[0].metric_values[0].value) if srch_resp.rows else 0
 
-    # Q3: sessions with any content page view (regardless of search)
-    # Case-insensitive so mixed-case paths (e.g. /CQResearcher/) match the patterns.
-    content_f   = _and(auth_f, _contains_or("pagePath", CONTENT_URL_PATTERNS, case_sensitive=False))
-    cnt_resp    = client.run_report(RunReportRequest(
-        **base,
-        metrics=[Metric(name="sessions")],
-        dimension_filter=content_f,
-    ))
-    sessions_with_content = int(cnt_resp.rows[0].metric_values[0].value) if cnt_resp.rows else 0
+    if content_patterns:
+        # Q3: sessions with any content page view
+        content_f = _and(auth_f, _contains_or("pagePath", content_patterns, case_sensitive=False))
+        cnt_resp  = client.run_report(RunReportRequest(
+            **base,
+            metrics=[Metric(name="sessions")],
+            dimension_filter=content_f,
+        ))
+        sessions_with_content = int(cnt_resp.rows[0].metric_values[0].value) if cnt_resp.rows else 0
 
-    # Q4: sessions with search event AND a content page view (for sub-breakdown)
-    sc_f     = _and(srch_f, _contains_or("pagePath", CONTENT_URL_PATTERNS, case_sensitive=False))
-    sc_resp  = client.run_report(RunReportRequest(
-        **base,
-        metrics=[Metric(name="sessions")],
-        dimension_filter=sc_f,
-    ))
-    searched_reached_content = int(sc_resp.rows[0].metric_values[0].value) if sc_resp.rows else 0
+        # Q4: sessions with search event AND a content page view
+        sc_f    = _and(srch_f, _contains_or("pagePath", content_patterns, case_sensitive=False))
+        sc_resp = client.run_report(RunReportRequest(
+            **base,
+            metrics=[Metric(name="sessions")],
+            dimension_filter=sc_f,
+        ))
+        searched_reached_content = int(sc_resp.rows[0].metric_values[0].value) if sc_resp.rows else 0
+
+        # Q6: content page views where referrer was a search results page
+        ref_f    = _and(auth_f, FilterExpression(filter=Filter(
+            field_name="pageReferrer",
+            string_filter=Filter.StringFilter(value="/search/results",
+                                              match_type=Filter.StringFilter.MatchType.CONTAINS,
+                                              case_sensitive=False),
+        )))
+        ref_resp = client.run_report(RunReportRequest(
+            **base,
+            metrics=[Metric(name="screenPageViews")],
+            dimension_filter=ref_f,
+        ))
+        content_views_from_search = int(ref_resp.rows[0].metric_values[0].value) if ref_resp.rows else 0
+    else:
+        sessions_with_content = 0
+        searched_reached_content = 0
+        content_views_from_search = 0
 
     content_no_search = max(0, sessions_with_content - searched_reached_content)
     neither           = max(0, total - searched - content_no_search)
@@ -190,32 +227,13 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
           f"content_no_search={content_no_search:,}  neither={neither:,}  "
           f"sessions_with_content={sessions_with_content:,}  searched_reached_content={searched_reached_content:,}")
 
-    # Q5: individual view_search_results events
-    events_f  = _and(auth_f, FilterExpression(filter=Filter(
-        field_name="eventName",
-        string_filter=Filter.StringFilter(value="view_search_results",
-                                          match_type=Filter.StringFilter.MatchType.EXACT),
-    )))
-    ev_resp   = client.run_report(RunReportRequest(
+    # Q5: individual search events (uses the same filter as Q2)
+    ev_resp = client.run_report(RunReportRequest(
         **base,
         metrics=[Metric(name="eventCount")],
-        dimension_filter=events_f,
+        dimension_filter=srch_f,
     ))
     search_events = int(ev_resp.rows[0].metric_values[0].value) if ev_resp.rows else 0
-
-    # Q6: content page views where referrer was a search results page
-    ref_f    = _and(auth_f, FilterExpression(filter=Filter(
-        field_name="pageReferrer",
-        string_filter=Filter.StringFilter(value="/search/results",
-                                          match_type=Filter.StringFilter.MatchType.CONTAINS,
-                                          case_sensitive=False),
-    )))
-    ref_resp = client.run_report(RunReportRequest(
-        **base,
-        metrics=[Metric(name="screenPageViews")],
-        dimension_filter=ref_f,
-    ))
-    content_views_from_search = int(ref_resp.rows[0].metric_values[0].value) if ref_resp.rows else 0
 
     return {
         "total":                     total,
@@ -505,9 +523,13 @@ def merge_funnel(f1, f2):
 def fetch_all(client, start_date, end_date, auth_only=False):
     srm_ch = fetch_channel_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_ch  = fetch_channel_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
+    us_ch  = fetch_channel_data(client, PROPERTIES["us"],  start_date, end_date, auth_only)
 
     srm_s = fetch_search_data(client, PROPERTIES["srm"], start_date, end_date, auth_only)
     sk_s  = fetch_search_data(client, PROPERTIES["sk"],  start_date, end_date, auth_only)
+    # Universal Search uses its own event and has no content URL patterns yet
+    us_s  = fetch_search_data(client, PROPERTIES["us"],  start_date, end_date, auth_only,
+                              srch_filter=_us_search_filter(), content_patterns=[])
 
     combined_ch = merge_channel_rows(srm_ch, sk_ch)
 
@@ -522,6 +544,10 @@ def fetch_all(client, start_date, end_date, auth_only=False):
         "sk": {
             "channels": categorise_channels(sk_ch),
             "search":   sk_s,
+        },
+        "us": {
+            "channels": categorise_channels(us_ch),
+            "search":   us_s,
         },
         "combined": {
             "channels": categorise_channels(combined_ch),
