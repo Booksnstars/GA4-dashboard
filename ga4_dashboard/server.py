@@ -7,7 +7,9 @@ Production: gunicorn server:app       (uses GOOGLE_SERVICE_ACCOUNT_JSON env var)
 
 import json
 import os
+import re
 import sys
+import threading
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -65,15 +67,19 @@ def get_credentials():
     return creds
 
 
-# ── GA4 client (module-level so gunicorn workers share it) ────────────────────
+# ── GA4 client — lazy per-worker init ────────────────────────────────────────
+# Initialised on first request in each gunicorn worker (post-fork), not at
+# import time, so the gRPC channel is never shared across forked processes.
 
-_ga_client = None
+_ga_client      = None
+_ga_client_lock = threading.Lock()
 
 def get_ga_client():
     global _ga_client
-    if _ga_client is None:
-        _ga_client = BetaAnalyticsDataClient(credentials=get_credentials())
-    return _ga_client
+    with _ga_client_lock:
+        if _ga_client is None:
+            _ga_client = BetaAnalyticsDataClient(credentials=get_credentials())
+        return _ga_client
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -149,7 +155,8 @@ def bake_static(template, data):
   }});
 }})();
 </script>"""
-    return template.replace("<script>", shim + "\n<script>", 1)
+    # Match <script> or <script type="..."> — avoids silent failure if attributes are added.
+    return re.sub(r'<script\b', shim + '\n<script', template, count=1)
 
 
 # ── Local dev entry point ─────────────────────────────────────────────────────
@@ -160,11 +167,6 @@ if __name__ == "__main__":
     creds = get_credentials()
     _ga_client = BetaAnalyticsDataClient(credentials=creds)
     print("    ✓ Authenticated")
-
-    default_end   = date.today().strftime("%Y-%m-%d")
-    default_start = (date.today() - timedelta(days=90)).strftime("%Y-%m-%d")
-    print(f"\n🗺   Landing page diagnostic ({default_start} → {default_end}):")
-    ga4_client.list_landing_pages_diagnostic(_ga_client, default_start, default_end)
 
     port = int(os.environ.get("PORT", 5000))
     print(f"🌐  Open http://localhost:{port} in your browser\n")
