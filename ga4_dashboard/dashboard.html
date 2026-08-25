@@ -427,12 +427,12 @@ function channelSection(ch, isAuth, baseTotal) {
   return `
   <div class="section">
     <div class="section-title">1 &middot; Session Origin - External Discovery vs Direct <span style="font-weight:400;color:var(--muted);font-size:.9rem">(${label})</span>${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
-      ${tip('How sessions arrived at the site, grouped by channel. Switching between Combined/SRM/SK/CQ changes the property scope; the date range above changes the time window.')}
+      ${tip('How sessions arrived at the site, grouped by channel. Switching between Combined / SRM / SK / Universal Search changes the property scope; the date range above changes the time window.')}
     </div>
     ${methodology('method-s1', 'Pulls from GA4 session channel grouping - how each session started and what brought the user to the site. Covers all traffic sources including organic search, direct, referral, and AI assistants.')}
     <div class="cards">
       <div class="card total">
-        <div class="label">Total Sessions ${tip('All sessions in the selected property and date range' + (isAuth ? ', filtered to authenticated users only.' : '.') + ' Matches the base used in Sections 2 and 3.')}</div>
+        <div class="label">Total Sessions ${tip('All sessions in the selected property and date range' + (isAuth ? ', filtered to authenticated users only.' : '.') + ' Matches the base used in Section 2.')}</div>
         <div class="value">${num(t)}</div>
       </div>
       <div class="card ext">
@@ -485,10 +485,10 @@ function searchSection(s, isAuth) {
     return `
   <div class="section" style="margin-top:32px">
     <div class="section-title">2 &middot; Search Volume &amp; Reach${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
-      ${tip('All sessions in this view fired the parasol_universal_search event at least once. Section 1 shows where those searchers came from. This section shows how intensively they searched and (once content URL patterns are configured) how many reached a content page.')}
+      ${tip('All sessions in this view fired the parasol_universal_search event at least once. Section 1 shows where those searchers came from. This section shows how intensively they searched.')}
     </div>
     <p class="section-base">${baseLabel} &mdash; all fired <code>parasol_universal_search</code></p>
-    ${methodology('method-s2', 'Scoped to sessions where parasol_universal_search fired at least once, with the same authenticated filter applied as Section 1. Total Search Events counts every individual event so one session can contribute multiple. Searches per Session measures usage intensity. Content reach will be available once content URL patterns are configured for Universal Search.')}
+    ${methodology('method-s2', 'Scoped to sessions where parasol_universal_search fired at least once. The authenticated filter does not apply to Universal Search — all sessions are included regardless of login state. Total Search Events counts every individual event so one session can contribute multiple. Searches per Session measures query intensity.')}
     <div class="cards">
       <div class="card srch">
         <div class="label">Search Sessions ${tip('Total sessions where parasol_universal_search fired at least once. This is the base population for the entire Universal Search view.')}</div>
@@ -536,7 +536,7 @@ function searchSection(s, isAuth) {
       ${tip('How sessions are divided by search use and content engagement. Each session falls into exactly one of the three top-level categories.')}
     </div>
     <p class="section-base">${baseLabel}</p>
-    ${methodology('method-s2', 'Pulls from GA4 event data - specifically whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content Views from Search uses page referrer data to identify content page views where the immediately preceding page was a search results page.')}
+    ${methodology('method-s2', 'Pulls from GA4 event data — whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content Views from Search is an estimate based on page referrer: it counts page views where the HTTP referrer header contained /search/results, indicating the user navigated directly from a search results page to that page.')}
     <div class="cards">
       <div class="card srch">
         <div class="label">Used Search ${tip(`${srchP}% of sessions (${num(s.searched)}) included at least one search - the user typed a query and viewed results at some point during their visit. Triggered by the view_search_results or search_within_content event.`)}</div>
