@@ -106,6 +106,37 @@ for days, range_label, filename in RANGES:
     // Update status line
     var sm = document.getElementById('status-msg');
     if (sm) {{ sm.textContent = 'Snapshot · {start_date} → {end_date}'; }}
+
+    // Defer until after dashboard.html's own DOMContentLoaded handlers have run
+    // (they set up the toggle-btn click listeners we piggyback on).
+    setTimeout(function() {{
+      var validViews = ['srm', 'sk', 'us', 'combined'];
+
+      function updateSwitcherHrefs(view) {{
+        document.querySelectorAll('#range-switcher a').forEach(function(a) {{
+          var base = a.getAttribute('href').split('#')[0];
+          a.href = base + '#' + view;
+        }});
+      }}
+
+      // Restore property selection from URL hash on page load
+      var initialView = location.hash.replace('#', '');
+      if (validViews.indexOf(initialView) !== -1) {{
+        var btn = document.querySelector('.toggle-btn[data-view="' + initialView + '"]');
+        if (btn) btn.click();
+      }} else {{
+        initialView = 'combined';
+      }}
+      updateSwitcherHrefs(initialView);
+
+      // Keep hash and switcher links in sync whenever a property tab is clicked
+      document.querySelectorAll('.toggle-btn').forEach(function(btn) {{
+        btn.addEventListener('click', function() {{
+          location.hash = btn.dataset.view;
+          updateSwitcherHrefs(btn.dataset.view);
+        }});
+      }});
+    }}, 0);
   }});
 }})();
 </script>"""
