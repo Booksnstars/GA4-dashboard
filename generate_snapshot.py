@@ -50,8 +50,10 @@ for days, range_label, filename in RANGES:
     start_date = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
 
     print(f"Fetching {range_label}: {start_date} → {end_date} …")
-    data = ga4_client.fetch_all(client, start_date, end_date, auth_only=False)
-    data["meta"] = {"start": start_date, "end": end_date, "auth_only": False}
+    data_all  = ga4_client.fetch_all(client, start_date, end_date, auth_only=False)
+    data_auth = ga4_client.fetch_all(client, start_date, end_date, auth_only=True)
+    data_all["meta"]  = {"start": start_date, "end": end_date, "auth_only": False}
+    data_auth["meta"] = {"start": start_date, "end": end_date, "auth_only": True}
     print(f"  Done.")
 
     # Build the range-switcher bar injected at the top of the page
@@ -76,14 +78,16 @@ for days, range_label, filename in RANGES:
 (function() {{
   // Inject hiding styles immediately — no DOMContentLoaded timing dependency.
   var _s = document.createElement('style');
-  _s.textContent = '.date-group{{display:none!important}}.auth-toggle-wrap{{display:none!important}}#export-btn{{display:none!important}}';
+  _s.textContent = '.date-group{{display:none!important}}#export-btn{{display:none!important}}';
   (document.head || document.documentElement).appendChild(_s);
 
-  var _BAKED = {json.dumps(data, ensure_ascii=False)};
+  var _BAKED_ALL  = {json.dumps(data_all,  ensure_ascii=False)};
+  var _BAKED_AUTH = {json.dumps(data_auth, ensure_ascii=False)};
   var _realFetch = window.fetch;
   window.fetch = function(url) {{
     if (typeof url === 'string' && url.indexOf('/api/data') !== -1) {{
-      return Promise.resolve(new Response(JSON.stringify(_BAKED), {{
+      var payload = (url.indexOf('auth=1') !== -1) ? _BAKED_AUTH : _BAKED_ALL;
+      return Promise.resolve(new Response(JSON.stringify(payload), {{
         status: 200,
         headers: {{'Content-Type': 'application/json'}}
       }}));
@@ -97,7 +101,7 @@ for days, range_label, filename in RANGES:
     document.body.insertBefore(bar.firstChild, document.body.firstChild);
     // Update status line
     var sm = document.getElementById('status-msg');
-    if (sm) {{ sm.textContent = 'Snapshot · {start_date} → {end_date}'; }}
+    if (sm) {{ sm.textContent = 'Snapshot  ·  {start_date} → {end_date}'; }}
 
     // Defer until after dashboard.html's own DOMContentLoaded handlers have run
     // (they set up the toggle-btn click listeners we piggyback on).
