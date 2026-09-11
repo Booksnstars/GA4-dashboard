@@ -427,7 +427,7 @@ function channelSection(ch, isAuth, baseTotal) {
   return `
   <div class="section">
     <div class="section-title">1 &middot; Session Origin - External Discovery vs Direct <span style="font-weight:400;color:var(--muted);font-size:.9rem">(${label})</span>${isAuth ? ' <span class="auth-badge">Authenticated only</span>' : ''}
-      ${tip('How sessions arrived at the site, grouped by channel. Switching between Combined / SRM / SK / Universal Search changes the property scope; the date range above changes the time window.')}
+      ${tip('How sessions arrived at the site, grouped by channel. Switching between Combined / SRM / SK / Universal Search changes the property scope; the date range switcher at the top of the page changes the time window.')}
     </div>
     ${methodology('method-s1', 'Pulls from GA4 session channel grouping - how each session started and what brought the user to the site. Covers all traffic sources including organic search, direct, referral, and AI assistants.')}
     <div class="cards">
