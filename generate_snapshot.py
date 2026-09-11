@@ -1,8 +1,7 @@
-"""Generates a self-contained static HTML snapshot of the GA4 dashboard.
+"""Generates self-contained static HTML snapshots of the GA4 dashboard.
 
-Called by the GitHub Actions workflow; reads GOOGLE_OAUTH_TOKEN_JSON from the
-environment, fetches the last 365 days from all properties, and writes
-output/index.html ready for GitHub Pages deployment.
+Produces three pages (30 days, 90 days, 1 year) with a range switcher bar,
+deployed to output/ for GitHub Pages.
 """
 
 import json
@@ -12,7 +11,6 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-# Allow importing ga4_client from the subdirectory
 sys.path.insert(0, str(Path(__file__).parent / "ga4_dashboard"))
 
 from google.auth.transport.requests import Request
@@ -22,6 +20,12 @@ from google.analytics.data_v1beta import BetaAnalyticsDataClient
 import ga4_client
 
 SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"]
+
+RANGES = [
+    (30,  "30 days",  "30d.html"),
+    (90,  "90 days",  "90d.html"),
+    (365, "1 year",   "index.html"),
+]
 
 # ── Credentials ───────────────────────────────────────────────────────────────
 
@@ -33,22 +37,42 @@ creds = Credentials.from_authorized_user_info(json.loads(oauth_json), SCOPES)
 if not creds.valid and creds.refresh_token:
     creds.refresh(Request())
 
-# ── Fetch data ────────────────────────────────────────────────────────────────
-
-end_date   = date.today().strftime("%Y-%m-%d")
-start_date = (date.today() - timedelta(days=365)).strftime("%Y-%m-%d")
-
-print(f"Fetching {start_date} → {end_date} …")
 client = BetaAnalyticsDataClient(credentials=creds)
-data   = ga4_client.fetch_all(client, start_date, end_date, auth_only=False)
-data["meta"] = {"start": start_date, "end": end_date, "auth_only": False}
-print("Fetch complete.")
 
-# ── Bake into static HTML ─────────────────────────────────────────────────────
+# ── Generate one page per range ───────────────────────────────────────────────
 
 template = (Path(__file__).parent / "ga4_dashboard" / "dashboard.html").read_text(encoding="utf-8")
+out = Path(__file__).parent / "output"
+out.mkdir(exist_ok=True)
 
-shim = f"""<script>
+for days, range_label, filename in RANGES:
+    end_date   = date.today().strftime("%Y-%m-%d")
+    start_date = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    print(f"Fetching {range_label}: {start_date} → {end_date} …")
+    data = ga4_client.fetch_all(client, start_date, end_date, auth_only=False)
+    data["meta"] = {"start": start_date, "end": end_date, "auth_only": False}
+    print(f"  Done.")
+
+    # Build the range-switcher bar injected at the top of the page
+    switcher_items = []
+    for _, lbl, fn in RANGES:
+        if fn == filename:
+            style = ("color:#fff;text-decoration:none;padding:5px 14px;"
+                     "font-weight:700;border-bottom:2px solid rgba(255,255,255,.8);")
+        else:
+            style = "color:rgba(255,255,255,.75);text-decoration:none;padding:5px 14px;"
+        switcher_items.append(f'<a href="{fn}" style="{style}">{lbl}</a>')
+
+    switcher_html = (
+        '<div id="range-switcher" style="background:#1e4d1e;padding:4px 16px 0;'
+        'display:flex;align-items:center;gap:2px;font-size:.82rem;font-family:system-ui,sans-serif;">'
+        '<span style="color:rgba(255,255,255,.55);margin-right:10px;font-size:.78rem;">Date range</span>'
+        + "".join(switcher_items)
+        + "</div>"
+    )
+
+    shim = f"""<script>
 (function() {{
   var _BAKED = {json.dumps(data, ensure_ascii=False)};
   var _realFetch = window.fetch;
@@ -62,6 +86,10 @@ shim = f"""<script>
     return _realFetch.apply(this, arguments);
   }};
   document.addEventListener('DOMContentLoaded', function() {{
+    // Inject range switcher above the existing header
+    var bar = document.createElement('div');
+    bar.innerHTML = {json.dumps(switcher_html)};
+    document.body.insertBefore(bar.firstChild, document.body.firstChild);
     // Disable controls that require a live server
     var rb = document.getElementById('refresh-btn');
     if (rb) {{ rb.disabled = true; rb.title = 'Not available in snapshot'; }}
@@ -77,14 +105,13 @@ shim = f"""<script>
     }});
     // Update status line
     var sm = document.getElementById('status-msg');
-    if (sm) {{ sm.textContent = 'Snapshot · {data["meta"]["start"]} → {data["meta"]["end"]}'; }}
+    if (sm) {{ sm.textContent = 'Snapshot · {start_date} → {end_date}'; }}
   }});
 }})();
 </script>"""
 
-static_html = re.sub(r'<script\b', shim + '\n<script', template, count=1)
+    static_html = re.sub(r'<script\b', shim + '\n<script', template, count=1)
+    (out / filename).write_text(static_html, encoding="utf-8")
+    print(f"  Written: output/{filename}")
 
-out = Path(__file__).parent / "output"
-out.mkdir(exist_ok=True)
-(out / "index.html").write_text(static_html, encoding="utf-8")
-print(f"Written: output/index.html")
+print("All snapshots complete.")
