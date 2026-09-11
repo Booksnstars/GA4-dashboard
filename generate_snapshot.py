@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -18,6 +19,18 @@ from google.oauth2.credentials import Credentials
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 
 import ga4_client
+
+
+def fetch_with_retry(client, start_date, end_date, auth_only, max_attempts=4):
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return ga4_client.fetch_all(client, start_date, end_date, auth_only=auth_only)
+        except Exception as e:
+            if attempt == max_attempts:
+                raise
+            wait = 15 * attempt
+            print(f"  GA4 API error (attempt {attempt}/{max_attempts}), retrying in {wait}s: {e}")
+            time.sleep(wait)
 
 SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"]
 
@@ -50,8 +63,8 @@ for days, range_label, filename in RANGES:
     start_date = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
 
     print(f"Fetching {range_label}: {start_date} → {end_date} …")
-    data_all  = ga4_client.fetch_all(client, start_date, end_date, auth_only=False)
-    data_auth = ga4_client.fetch_all(client, start_date, end_date, auth_only=True)
+    data_all  = fetch_with_retry(client, start_date, end_date, auth_only=False)
+    data_auth = fetch_with_retry(client, start_date, end_date, auth_only=True)
     data_all["meta"]  = {"start": start_date, "end": end_date, "auth_only": False}
     data_auth["meta"] = {"start": start_date, "end": end_date, "auth_only": True}
     print(f"  Done.")
