@@ -90,19 +90,14 @@ for days, range_label, filename in RANGES:
     var bar = document.createElement('div');
     bar.innerHTML = {json.dumps(switcher_html)};
     document.body.insertBefore(bar.firstChild, document.body.firstChild);
-    // Disable controls that require a live server
-    var rb = document.getElementById('refresh-btn');
-    if (rb) {{ rb.disabled = true; rb.title = 'Not available in snapshot'; }}
+    // Hide controls that require a live server
+    var dg = document.querySelector('.date-group');
+    if (dg) dg.style.display = 'none';
     var eb = document.getElementById('export-btn');
-    if (eb) {{ eb.style.display = 'none'; }}
+    if (eb) eb.style.display = 'none';
     // Hide auth toggle — snapshot is all-users only
     var at = document.querySelector('.auth-toggle-wrap');
     if (at) at.style.display = 'none';
-    // Disable date inputs — date range is fixed in this snapshot
-    document.querySelectorAll('input[type="date"]').forEach(function(el) {{
-      el.disabled = true;
-      el.title = 'Date range is fixed in this snapshot';
-    }});
     // Update status line
     var sm = document.getElementById('status-msg');
     if (sm) {{ sm.textContent = 'Snapshot · {start_date} → {end_date}'; }}
