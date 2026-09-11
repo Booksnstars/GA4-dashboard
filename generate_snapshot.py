@@ -70,6 +70,11 @@ shim = f"""<script>
     // Hide auth toggle — snapshot is all-users only
     var at = document.querySelector('.auth-toggle-wrap');
     if (at) at.style.display = 'none';
+    // Disable date inputs — date range is fixed in this snapshot
+    document.querySelectorAll('input[type="date"]').forEach(function(el) {{
+      el.disabled = true;
+      el.title = 'Date range is fixed in this snapshot';
+    }});
     // Update status line
     var sm = document.getElementById('status-msg');
     if (sm) {{ sm.textContent = 'Snapshot · {data["meta"]["start"]} → {data["meta"]["end"]}'; }}
