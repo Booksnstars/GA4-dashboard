@@ -74,6 +74,11 @@ for days, range_label, filename in RANGES:
 
     shim = f"""<script>
 (function() {{
+  // Inject hiding styles immediately — no DOMContentLoaded timing dependency.
+  var _s = document.createElement('style');
+  _s.textContent = '.date-group{{display:none!important}}.auth-toggle-wrap{{display:none!important}}#export-btn{{display:none!important}}';
+  (document.head || document.documentElement).appendChild(_s);
+
   var _BAKED = {json.dumps(data, ensure_ascii=False)};
   var _realFetch = window.fetch;
   window.fetch = function(url) {{
@@ -90,14 +95,6 @@ for days, range_label, filename in RANGES:
     var bar = document.createElement('div');
     bar.innerHTML = {json.dumps(switcher_html)};
     document.body.insertBefore(bar.firstChild, document.body.firstChild);
-    // Hide controls that require a live server
-    var dg = document.querySelector('.date-group');
-    if (dg) dg.style.display = 'none';
-    var eb = document.getElementById('export-btn');
-    if (eb) eb.style.display = 'none';
-    // Hide auth toggle — snapshot is all-users only
-    var at = document.querySelector('.auth-toggle-wrap');
-    if (at) at.style.display = 'none';
     // Update status line
     var sm = document.getElementById('status-msg');
     if (sm) {{ sm.textContent = 'Snapshot · {start_date} → {end_date}'; }}
