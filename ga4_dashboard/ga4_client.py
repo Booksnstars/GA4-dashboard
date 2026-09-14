@@ -153,12 +153,14 @@ def fetch_search_data(client, property_id, start_date, end_date, auth_only=False
         return int(resp.rows[0].metric_values[idx].value) if resp.rows else 0
 
     # All independent queries run concurrently; sessions+eventCount combined to save a round-trip.
+    content_f = _contains_or("pagePath", content_patterns, case_sensitive=False) if content_patterns else None
+    # ref_f scoped to content pages when patterns are available — avoids counting every page after search.
+    ref_content_f = _and(ref_f, content_f) if content_f else ref_f
     with concurrent.futures.ThreadPoolExecutor() as ex:
         f_total = ex.submit(_run, [Metric(name="sessions")], auth_f)
         f_srch  = ex.submit(_run, [Metric(name="sessions"), Metric(name="eventCount")], srch_f)
-        f_ref   = ex.submit(_run, [Metric(name="screenPageViews")], ref_f)
+        f_ref   = ex.submit(_run, [Metric(name="screenPageViews")], ref_content_f)
         if content_patterns:
-            content_f = _contains_or("pagePath", content_patterns, case_sensitive=False)
             f_cnt = ex.submit(_run, [Metric(name="sessions")], _and(auth_f, content_f))
             f_sc  = ex.submit(_run, [Metric(name="sessions")], _and(srch_f, content_f))
 
