@@ -58,24 +58,13 @@ def _auth_filter():
 
 
 def _search_filter():
-    return FilterExpression(
-        or_group=FilterExpressionList(expressions=[
-            FilterExpression(filter=Filter(
-                field_name="eventName",
-                string_filter=Filter.StringFilter(
-                    value="view_search_results",
-                    match_type=Filter.StringFilter.MatchType.EXACT,
-                ),
-            )),
-            FilterExpression(filter=Filter(
-                field_name="eventName",
-                string_filter=Filter.StringFilter(
-                    value="search_within_content",
-                    match_type=Filter.StringFilter.MatchType.EXACT,
-                ),
-            )),
-        ])
-    )
+    return FilterExpression(filter=Filter(
+        field_name="eventName",
+        string_filter=Filter.StringFilter(
+            value="view_search_results",
+            match_type=Filter.StringFilter.MatchType.EXACT,
+        ),
+    ))
 
 
 def _us_search_filter():

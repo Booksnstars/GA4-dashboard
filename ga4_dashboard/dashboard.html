@@ -536,10 +536,10 @@ function searchSection(s, isAuth) {
       ${tip('How sessions are divided by search use and content engagement. Each session falls into exactly one of the three top-level categories.')}
     </div>
     <p class="section-base">${baseLabel}</p>
-    ${methodology('method-s2', 'Pulls from GA4 event data — whether a view_search_results or search_within_content event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content Views from Search is an estimate based on page referrer: it counts page views where the HTTP referrer header contained /search/results, indicating the user navigated directly from a search results page to that page.')}
+    ${methodology('method-s2', 'Pulls from GA4 event data — whether a view_search_results event fired at any point during the session. Total Search Events counts individual search actions so one session can contribute multiple. Content Views from Search is an estimate based on page referrer: it counts page views where the HTTP referrer header contained /search/results, indicating the user navigated directly from a search results page to that page.')}
     <div class="cards">
       <div class="card srch">
-        <div class="label">Used Search ${tip(`${srchP}% of sessions (${num(s.searched)}) included at least one search - the user typed a query and viewed results at some point during their visit. Triggered by the view_search_results or search_within_content event.`)}</div>
+        <div class="label">Used Search ${tip(`${srchP}% of sessions (${num(s.searched)}) included at least one search - the user typed a query and viewed results at some point during their visit. Triggered by the view_search_results event.`)}</div>
         <div class="value">${srchP}%</div>
         <div class="sub">${num(s.searched)} sessions</div>
       </div>
@@ -574,7 +574,7 @@ function searchSection(s, isAuth) {
       </div>
     </div>
     <p style="font-size:.8rem;color:var(--muted);margin-top:4px">
-      &#x2139;&nbsp;&nbsp;"Used Search" = sessions where <code>view_search_results</code> or <code>search_within_content</code> fired at least once.
+      &#x2139;&nbsp;&nbsp;"Used Search" = sessions where <code>view_search_results</code> fired at least once.
     </p>
   </div>`;
 }
